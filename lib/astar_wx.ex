@@ -4,7 +4,7 @@ defmodule AstarWx do
   @behaviour :wx_object
   @title "A-star Wx Demo"
   @width 640
-  @height 480
+  @height 500
   @size {@width, @height}
 
   def start_link(args) do
@@ -43,6 +43,8 @@ defmodule AstarWx do
     Logger.info("starting timer #{slice}ms")
     timer_ref = Process.send_after(self(), :tick, slice)
 
+    {start, polygons} = load_scene()
+
     state = %{
       wx_frame: frame,
       wx_panel: panel,
@@ -52,6 +54,10 @@ defmodule AstarWx do
 
       timer_ref: timer_ref,
       slice: slice,
+
+      start: start,
+      polygons: polygons,
+      cursor: nil,
     }
     {frame, state}
   end
@@ -76,11 +82,11 @@ defmodule AstarWx do
   @impl true
   def handle_event({:wx, _id, _wx_ref, _something,
                     {:wxMouse, :enter_window,
-                     _x, _y,
+                     x, y,
                      _left_down, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
                      _wheel_rotation, _wheel_delta, _lines_per_action}} = _event, state) do
-    {:noreply, state}
+    {:noreply, %{state | cursor: {x, y}}}
   end
 
   @impl true
@@ -90,17 +96,17 @@ defmodule AstarWx do
                      _left_down, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
                      _wheel_rotation, _wheel_delta, _lines_per_action}} = _event, state) do
-    {:noreply, state}
+    {:noreply, %{state | cursor: nil}}
   end
 
   @impl true
   def handle_event({:wx, _id, _wx_ref, _something,
-                    {:wxMouse, :motion, _x, _y,
+                    {:wxMouse, :motion, x, y,
                      _left_down, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
                      _wheel_rotation, _wheel_delta, _lines_per_action}} = event, state) do
     Logger.debug("mouse event #{inspect event, pretty: true}")
-    {:noreply, state}
+    {:noreply, %{state | cursor: {x, y}}}
   end
 
   @impl true
@@ -131,6 +137,38 @@ defmodule AstarWx do
     Logger.debug("paint event #{inspect event, pretty: true}")
 
     dc = state.wx_memory_dc
+    # cls
+    brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxSOLID}])
+    :ok = :wxDC.setBackground(dc, brush)
+    :ok = :wxDC.clear(dc)
+    :wxBrush.destroy(brush)
+
+    red = {255, 0, 0}
+    green = {0, 255, 0}
+    blue = {0, 150, 255}
+
+    red_pen = :wxPen.new(red, [{:width,  1}, {:style, Wx.wxSOLID}])
+    green_pen = :wxPen.new(green, [{:width,  1}, {:style, Wx.wxSOLID}])
+    blue_pen = :wxPen.new(blue, [{:width,  1}, {:style, Wx.wxSOLID}])
+    fat_blue_pen = :wxPen.new(blue, [{:width,  1}, {:style, Wx.wxSOLID}])
+
+    brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxTRANSPARENT}])
+
+    for {_name, points} <- state.polygons do
+      :wxDC.setPen(dc, blue_pen)
+      :wxDC.setBrush(dc, brush)
+      :ok = :wxDC.drawPolygon(dc, points)
+      for point <- points do
+        WxUtils.wx_crosshair(dc, point, red)
+      end
+    end
+
+    WxUtils.wx_crosshair(dc, state.start, green)
+    if state.cursor do
+      :wxDC.setPen(dc, blue_pen)
+      :ok = :wxDC.drawLine(dc, state.start, state.cursor)
+      WxUtils.wx_crosshair(dc, state.cursor, red)
+    end
 
     # Draw
     paint_dc = :wxPaintDC.new(state.wx_panel)
@@ -138,6 +176,11 @@ defmodule AstarWx do
 
     # Cleanup :-/
     :wxPaintDC.destroy(paint_dc)
+    :wxPen.destroy(red_pen)
+    :wxPen.destroy(blue_pen)
+    :wxPen.destroy(fat_blue_pen)
+    :wxPen.destroy(green_pen)
+    :wxBrush.destroy(brush)
 
     :ok
   end
@@ -202,5 +245,56 @@ defmodule AstarWx do
 
   def stop(_state) do
     Logger.info("stopping")
+  end
+
+  ##
+  ##
+  ##
+
+  def transform_point([x, y]) do
+    {trunc(x), trunc(y)}
+  end
+
+  def transform_walkbox({name, points}) do
+    Logger.info("transform box -> #{inspect points}")
+    points = Enum.map(points, &(transform_point(&1)))
+    Logger.info("transform box <- #{inspect points}")
+    {name, points}
+  end
+
+  def transform_walkboxes(polygons) do
+    polygons
+    |> Enum.map(&(transform_walkbox(&1)))
+  end
+
+  def close_walkbox({name, points}) do
+    if Enum.at(points, 0) == Enum.at(points, -1) do
+      {name, points}
+    else
+      {name, points ++ [Enum.at(points, 0)]}
+    end
+  end
+
+  def close_walkboxes(polygons) do
+    polygons
+    |> Enum.map(&(close_walkbox(&1)))
+  end
+
+  def load_scene() do
+    path = Application.app_dir(:astarwx)
+    filename = "#{path}/priv/scene1.json"
+    Logger.info("Processing #{filename}")
+    {:ok, file} = File.read(filename)
+    {:ok, json} = Poison.decode(file, keys: :atoms)
+    Logger.info("#{inspect json, pretty: true}")
+    polygons =
+      json[:polygons]
+      |> transform_walkboxes
+      |> close_walkboxes
+    Logger.info("#{inspect polygons, pretty: true}")
+    {
+      transform_point(json[:start]),
+      polygons,
+    }
   end
 end
