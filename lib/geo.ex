@@ -212,22 +212,17 @@ defmodule Geo do
 
   """
   def is_line_of_sight?(polygon, holes, line) do
-    Logger.info("is los? #{inspect polygon} with holes #{inspect holes} on #{inspect line}")
     #   bool InLineOfSight(Polygon polygon, Vector2 start, Vector2 end)
     # {
     #   // Not in LOS if any of the ends is outside the polygon
     #   if (!polygon.Inside(start) || !polygon.Inside(end)) return false;
     {start, stop} = line
     if not is_inside?(polygon, start) or not is_inside?(polygon, stop) do
-      Logger.info("start or stop not inside polygon")
-      Logger.info("start #{inspect start} = #{is_inside?(polygon, start)}")
-      Logger.info("stop #{inspect stop} = #{is_inside?(polygon, stop)}")
       false
     else
       #   // In LOS if it's the same start and end location
       #   if (Vector2.Distance(start, end) < epsilon) return true;
       if Vector.distance(start, stop) < 0.5 do
-        Logger.info("distance < 0.5")
         true
       else
         #   // Not in LOS if any edge is intersected by the start-end line segment
@@ -239,13 +234,10 @@ defmodule Geo do
         #   }
         # TODO: use Enum.any?
         rv = Enum.reduce_while([{:main, polygon}] ++ holes, true, fn {name, points}, _acc ->
-          Logger.info("Checking intersect with #{name} #{inspect points}")
           # TODO: line/polygon oder is inconsistent
           if intersections(line, points) == [] do
-            Logger.info("Intersect with #{name}, no")
             {:cont, true}
           else
-            Logger.info("Intersect with #{name}, YES")
             {:halt, false}
           end
         end)
@@ -257,14 +249,11 @@ defmodule Geo do
           # }
           middle = Vector.div(Vector.add(start, stop), 2)
           acc = is_inside?(polygon, middle)
-          Logger.info("Middle #{inspect middle} inside main = #{acc}")
           # TODO: use Enum.any??
           acc = Enum.reduce(holes, acc, fn {name, points}, acc ->
             if is_inside?(points, middle) do
-              Logger.info("Middle #{inspect middle} is inside #{name} = #{acc}")
               false
             else
-              Logger.info("Middle #{inspect middle} not inside #{name} = #{acc}")
               acc
             end
           end)
