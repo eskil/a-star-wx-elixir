@@ -246,9 +246,20 @@ defmodule AstarWx do
 
   def draw_cursor(dc, cursor, polygons) do
     light_gray = {211, 211, 211}
-    {mains, _holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+    {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
     if Geo.is_inside?(mains[:main], cursor) do
-      WxUtils.wx_crosshair(dc, cursor, {0, 255, 0}, size: 6)
+      is_in_hole = Enum.reduce_while(holes, false, fn {_name, points}, is_in_hole ->
+        if Geo.is_inside?(points, cursor) do
+          {:halt, true}
+        else
+          {:cont, false}
+        end
+      end)
+      if is_in_hole do
+        WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)
+      else
+        WxUtils.wx_crosshair(dc, cursor, {0, 255, 0}, size: 6)
+      end
     else
       WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)
     end
