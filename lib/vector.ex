@@ -15,6 +15,10 @@ defmodule Vector do
     len(sub(b, a))
   end
 
+  def distance_squared({ax, ay}, {bx, by}) do
+    :math.pow(bx-ax, 2) + :math.pow(by - ay, 2)
+  end
+
   def normalise({x, y}=v) do
     l = len(v)
     {x / l, y / l}

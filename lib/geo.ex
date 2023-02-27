@@ -113,4 +113,88 @@ defmodule Geo do
     right = Vector.sub(next, current)
     Vector.cross(left, right) < 0
   end
+
+  def is_inside?(polygon, _point) when length(polygon) < 3 do
+    false
+  end
+
+  def is_inside?(polygon, point) do
+    Logger.info("is_inside? #{inspect polygon}")
+    #     const float epsilon = 0.5f;
+    epsilon = 0.5
+
+    #     bool inside = false;
+
+    #     // Must have 3 or more edges
+    #     if (polygon.Count < 3) return false;
+    # guard above
+
+    #     Vector2 oldPoint = polygon[polygon.Count - 1];
+    #     float oldSqDist = Vector2.DistanceSquared(oldPoint, point);
+
+    last = Enum.at(polygon, -1)
+    last_sq_dist = Vector.distance_squared(last, point)
+
+    Logger.info("is_inside?")
+
+    {_, _, is_inside} = Enum.reduce(polygon, {last, last_sq_dist, false},
+      fn p, {last, last_sq_dist, inside} ->
+        Logger.info("p = #{inspect p} last = #{inspect last} inside = #{inside}")
+        sq_dist = Vector.distance_squared(p, point)
+        if ((last_sq_dist + sq_dist + 2.0 * :math.sqrt(last_sq_dist * sq_dist)) - Vector.distance_squared(p, last) < epsilon) do
+          # toleranceOnOutside
+          {last, last_sq_dist, true}
+        else
+          {x, y} = point
+          {px, _py} = last
+          {left, right} = if (x > px) do
+            {last, point}
+          else
+            {point, last}
+          end
+          {lx, ly} = left
+          {rx, ry} = right
+          inside = if (lx < x and x <= rx and (y - ly) * (ry - ly) < (ry - ly) * (x - ly)) do
+            not inside
+          else
+            inside
+          end
+          {p, sq_dist, inside}
+        end
+      end)
+    Logger.info("is_inside? = #{is_inside}")
+    is_inside
+
+
+    #     for (int i = 0; i < polygon.Count; i++)
+    #     {
+    #         Vector2 newPoint = polygon[i];
+    #         float newSqDist = Vector2.DistanceSquared(newPoint, point);
+
+    #         if (oldSqDist + newSqDist + 2.0f * System.Math.Sqrt(oldSqDist * newSqDist) - Vector2.DistanceSquared(newPoint, oldPoint) < epsilon)
+    #             return toleranceOnOutside;
+
+    #         Vector2 left;
+    #         Vector2 right;
+    #         if (newPoint.X > oldPoint.X)
+    #         {
+    #             left = oldPoint;
+    #             right = newPoint;
+    #         }
+    #         else
+    #         {
+    #             left = newPoint;
+    #             right = oldPoint;
+    #         }
+
+    #         if (left.X < point.X && point.X <= right.X && (point.Y - left.Y) * (right.X - left.X) < (right.Y - left.Y) * (point.X - left.X))
+    #             inside = !inside;
+
+    #         oldPoint = newPoint;
+    #         oldSqDist = newSqDist;
+    #     }
+
+    #     return inside;
+    # }
+  end
 end

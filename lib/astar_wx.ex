@@ -154,11 +154,13 @@ defmodule AstarWx do
 
     draw_polygons(dc, state.polygons)
 
-    WxUtils.wx_crosshair(dc, state.start, green)
+    WxUtils.wx_crosshair(dc, state.start, green, size: 6)
     if state.cursor do
       line = {state.start, state.cursor}
       draw_a_b_line(dc, line, state.polygons)
+      draw_cursor(dc, state.cursor, state.polygons)
     end
+
 
     # Draw
     paint_dc = :wxPaintDC.new(state.wx_panel)
@@ -242,6 +244,16 @@ defmodule AstarWx do
   ##
   ##
 
+  def draw_cursor(dc, cursor, polygons) do
+    light_gray = {211, 211, 211}
+    {mains, _holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+    if Geo.is_inside?(mains[:main], cursor) do
+      WxUtils.wx_crosshair(dc, cursor, {0, 255, 0}, size: 6)
+    else
+      WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)
+    end
+  end
+
   def draw_polygons(dc, polygons) do
     blue = {0, 150, 255}
     opaque_blue = {0, 150, 255, 64}
@@ -297,7 +309,6 @@ defmodule AstarWx do
     :wxBrush.destroy(brush)
     :wxBrush.destroy(concave_brush)
     :wxBrush.destroy(opaque_blue_brush)
-
   end
 
   def draw_a_b_line(dc, {a, b}=line, polygons) do
@@ -308,8 +319,6 @@ defmodule AstarWx do
     light_gray_pen = :wxPen.new(light_gray, [{:width,  1}, {:style, Wx.wxSOLID}])
     :wxDC.setPen(dc, light_gray_pen)
     :ok = :wxDC.drawLine(dc, a, b)
-
-    WxUtils.wx_crosshair(dc, b, light_gray, size: 4)
 
     intersections = for {_name, points} <- polygons do
       Geo.intersections(line, points)
