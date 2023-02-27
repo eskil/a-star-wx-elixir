@@ -276,32 +276,20 @@ defmodule AstarWx do
     end
 
     for {_name, points} <- main do
-      # I could Enum.chunk_every(points, 3, 1)
-      # if the points list was extended to be a multiple of three...
-      # Enum.chunk_every(l, 3, 1, Enum.slice(l, 0, 3))
-      # that would do it
-      for idx <- 0..length(points)-1 do
-        Logger.info("idx #{idx}")
-        if Geo.is_concave?(points, idx) do
-          :wxDC.setPen(dc, blue_pen)
-          :wxDC.setBrush(dc, concave_brush)
-          :wxDC.drawCircle(dc, Enum.at(points, idx), 5)
-        end
+      {concave, _} = Geo.classify_vertices(points)
+      for point <- concave do
+        :wxDC.setPen(dc, blue_pen)
+        :wxDC.setBrush(dc, concave_brush)
+        :wxDC.drawCircle(dc, point, 5)
       end
     end
 
     for {_name, points} <- holes do
-      # I could Enum.chunk_every(points, 3, 1)
-      # if the points list was extended to be a multiple of three...
-      # Enum.chunk_every(l, 3, 1, Enum.slice(l, 0, 3))
-      # that would do it
-      for idx <- 0..length(points)-1 do
-        Logger.info("idx #{idx}")
-        if not Geo.is_concave?(points, idx) do
-          :wxDC.setPen(dc, blue_pen)
-          :wxDC.setBrush(dc, concave_brush)
-          :wxDC.drawCircle(dc, Enum.at(points, idx), 5)
-        end
+      {_, convex} = Geo.classify_vertices(points)
+      for point <- convex do
+        :wxDC.setPen(dc, blue_pen)
+        :wxDC.setBrush(dc, concave_brush)
+        :wxDC.drawCircle(dc, point, 5)
       end
     end
 
