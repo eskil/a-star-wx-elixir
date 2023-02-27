@@ -24,6 +24,10 @@ defmodule Vector do
     ax * bx + ay * by
   end
 
+  def cross({ax, ay}, {bx, by}) do
+    ax * by - ay * bx
+  end
+
   def shorten({x, y}=v, sz) do
     s = 1 - sz/len(v)
     {x * s, y * s}

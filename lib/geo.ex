@@ -1,4 +1,6 @@
 defmodule Geo do
+  require Logger
+
   def intersects?(line, polygon) do
     prev_point = List.last(polygon)
     intersects_helper(line, polygon, prev_point)
@@ -64,5 +66,33 @@ defmodule Geo do
         :none
       end
     end
+  end
+
+  @doc"""
+  Determines if a vertex is concave or not.
+
+  ## Params
+  * `polygon`, a list of `{x, y}` tuples outlining a polygon. This must be non-closed.
+  * `at`, a position within `polygon` to check.
+
+  Return `true` or `false`.
+  """
+  # https://www.david-gouveia.com/pathfinding-on-a-2d-polygonal-map
+  def is_concave?(polygon, at) do
+    next = Enum.at(polygon, rem(at+1, length(polygon)))
+    current = Enum.at(polygon, at)
+    prev = Enum.at(polygon, at-1)
+    Logger.info("is_concave #{inspect polygon} #{at}")
+    Logger.info("is_concave prev #{inspect prev}")
+    Logger.info("is_concave current #{inspect current}")
+    Logger.info("is_concave next #{inspect next}")
+
+    {next_x, next_y} = next
+    {current_x, current_y} = current
+    {prev_x, prev_y} = prev
+
+    left = Vector.sub(current, prev)
+    right = Vector.sub(next, current)
+    Vector.cross(left, right) < 0
   end
 end

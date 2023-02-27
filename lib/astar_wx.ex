@@ -249,6 +249,7 @@ defmodule AstarWx do
     blue_pen = :wxPen.new(blue, [{:width,  1}, {:style, Wx.wxSOLID}])
 
     brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxSOLID}])
+    concave_brush = :wxBrush.new(opaque_blue, [{:style, Wx.wxSOLID}])
     opaque_blue_brush = :wxBrush.new(opaque_blue, [{:style, Wx.wxSOLID}])
 
     {main, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
@@ -274,8 +275,39 @@ defmodule AstarWx do
       end
     end
 
+    for {_name, points} <- main do
+      # I could Enum.chunk_every(points, 3, 1)
+      # if the points list was extended to be a multiple of three...
+      # Enum.chunk_every(l, 3, 1, Enum.slice(l, 0, 3))
+      # that would do it
+      for idx <- 0..length(points)-1 do
+        Logger.info("idx #{idx}")
+        if Geo.is_concave?(points, idx) do
+          :wxDC.setPen(dc, blue_pen)
+          :wxDC.setBrush(dc, concave_brush)
+          :wxDC.drawCircle(dc, Enum.at(points, idx), 5)
+        end
+      end
+    end
+
+    for {_name, points} <- holes do
+      # I could Enum.chunk_every(points, 3, 1)
+      # if the points list was extended to be a multiple of three...
+      # Enum.chunk_every(l, 3, 1, Enum.slice(l, 0, 3))
+      # that would do it
+      for idx <- 0..length(points)-1 do
+        Logger.info("idx #{idx}")
+        if not Geo.is_concave?(points, idx) do
+          :wxDC.setPen(dc, blue_pen)
+          :wxDC.setBrush(dc, concave_brush)
+          :wxDC.drawCircle(dc, Enum.at(points, idx), 5)
+        end
+      end
+    end
+
     :wxPen.destroy(blue_pen)
     :wxBrush.destroy(brush)
+    :wxBrush.destroy(concave_brush)
     :wxBrush.destroy(opaque_blue_brush)
 
   end
@@ -331,17 +363,17 @@ defmodule AstarWx do
     |> Enum.map(&(transform_walkbox(&1)))
   end
 
-  def close_walkbox({name, points}) do
+  def unclose_walkbox({name, points}) do
     if Enum.at(points, 0) == Enum.at(points, -1) do
-      {name, points}
+      {name, Enum.drop(points, -1)}
     else
-      {name, points ++ [Enum.at(points, 0)]}
+      {name, points}
     end
   end
 
-  def close_walkboxes(polygons) do
+  def unclose_walkboxes(polygons) do
     polygons
-    |> Enum.map(&(close_walkbox(&1)))
+    |> Enum.map(&(unclose_walkbox(&1)))
   end
 
   def load_scene() do
@@ -354,7 +386,7 @@ defmodule AstarWx do
     polygons =
       json[:polygons]
       |> transform_walkboxes
-      |> close_walkboxes
+      |> unclose_walkboxes
     Logger.info("#{inspect polygons, pretty: true}")
     {
       transform_point(json[:start]),
