@@ -15,10 +15,8 @@ defmodule Geo do
   end
 
   def intersection({a, _b} = line, polygon) do
-    start = Vector.new(a)
     Enum.min_by(intersections(line, polygon), fn ip ->
-      stop = Vector.new(ip)
-      Vector.distance(start, stop)
+      Vector.distance(a, ip)
     end, fn ->
       nil
     end)

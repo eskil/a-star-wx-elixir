@@ -1,123 +1,63 @@
 defmodule Vector do
-  @moduledoc """
-  Various utility methods for Pacex. Quick and simple vector implementation.
-  """
-
-  defstruct [
-    x: 0,
-    y: 0,
-  ]
-
-  @type t :: %Vector{
-    x: float(),
-    y: float(),
-  }
-
-  def new(%{x: x, y: y}) do
-    %Vector{x: x, y: y}
-  end
-
-  def new({x, y}) do
-    %Vector{x: x, y: y}
-  end
-
-  def new(%Vector{}=a) do
-    %Vector{x: a.x, y: a.y}
-  end
-
-  def new(x, y) do
-    %Vector{x: x, y: y}
-  end
-
-  def len(%Vector{} = v) do
-    :math.sqrt(v.x * v.x + v.y * v.y)
-  end
-
   def len({x, y}) do
     :math.sqrt(x * x + y * y)
   end
 
-  def add(%Vector{} = a, %Vector{} = b) do
-    new(a.x + b.x, a.y + b.y)
-  end
-
   def add({ax, ay}, {bx, by}) do
-    new(ax + bx, ay + by)
-  end
-
-  def sub(%Vector{} = a, %Vector{} = b) do
-    new(a.x - b.x, a.y - b.y)
+    {ax + bx, ay + by}
   end
 
   def sub({ax, ay}, {bx, by}) do
-    new(ax - bx, ay - by)
-  end
-
-  def distance(%Vector{} = a, %Vector{} = b) do
-    len(sub(b, a))
+    {ax - bx, ay - by}
   end
 
   def distance({_ax, _ay}=a, {_bx, _by}=b) do
     len(sub(b, a))
   end
 
-  def normalise(%Vector{} = v) do
-    l = len(v)
-    new(v.x / l, v.y / l)
-  end
-
   def normalise({x, y}=v) do
     l = len(v)
-    new(x / l, y / l)
-  end
-
-  def dot(%Vector{} = a, %Vector{} = b) do
-    a.x * b.x + a.y * b.y
+    {x / l, y / l}
   end
 
   def dot({ax, ay}, {bx, by}) do
     ax * bx + ay * by
   end
 
-  def shorten(%Vector{}=a, sz) do
-    s = 1 - sz/len(a)
-    new(a.x * s, a.y * s)
-  end
-
   def shorten({x, y}=v, sz) do
     s = 1 - sz/len(v)
-    new(x * s, y * s)
+    {x * s, y * s}
   end
 
-  def mag(%Vector{} = v) do
-    :math.sqrt(:math.pow(v.x, 2) + :math.pow(v.y, 2))
+  def mag({x, y}) do
+    :math.sqrt(:math.pow(x, 2) + :math.pow(y, 2))
   end
 
-  def angle(%Vector{x: 0.0, y: y}) when y < 0 do
+  def angle({0.0, y}) when y < 0 do
     - :math.pi / 2
   end
 
-  def angle(%Vector{x: 0.0}) do
+  def angle({0.0, _y}) do
     :math.pi / 2
   end
 
-  def angle(%Vector{x: 0, y: y}) when y < 0 do
+  def angle({0, y}) when y < 0 do
     - :math.pi / 2
   end
 
-  def angle(%Vector{x: 0}) do
+  def angle({0, _y}) do
     :math.pi / 2
   end
 
-  def angle(%Vector{} = v) do
-    :math.atan(-v.y / -v.x)
+  def angle({x, y}) do
+    :math.atan(-y / -x)
   end
 
   @doc"""
   Calls trunc on x & y to make the vector work with wx.
   """
-  def truncate(%Vector{}=v) do
-    new({trunc(v.x), trunc(v.y)})
+  def truncate({x, y}) do
+    {trunc(x), trunc(y)}
   end
 
   @doc """
@@ -126,29 +66,29 @@ defmodule Vector do
   ## Examples
       iex> alias Vector, as: Vector
       Vector
-      iex> Vector.degrees_a(Vector.new(1, 1))
+      iex> Vector.degrees_a({1, 1)}
       45.0
-      iex> Vector.degrees_a(Vector.new(0, 1))
+      iex> Vector.degrees_a({0, 1)}
       90.0
-      iex> Vector.degrees_a(Vector.new(1, 0))
+      iex> Vector.degrees_a({1, 0)}
       -0.0
-      iex> Vector.degrees_a(Vector.new(-1, 1))
+      iex> Vector.degrees_a({-1, 1)}
       135.0
-      iex> Vector.degrees_a(Vector.new(-1, 0))
+      iex> Vector.degrees_a({-1, 0)}
       180.0
-      iex> Vector.degrees_a(Vector.new(-1, -1))
+      iex> Vector.degrees_a({-1, -1)}
       225.0
-      iex> Vector.degrees_a(Vector.new(0, -1))
+      iex> Vector.degrees_a({0, -1)}
       270.0
-      iex> Vector.degrees_a(Vector.new(1, -1))
+      iex> Vector.degrees_a({1, -1)}
       315.0
   """
-  def degrees_a(%Vector{} = v) do
+  def degrees_a({x, y}=v) do
     a = angle(v) * (180 / :math.pi)
-    a = if v.x < 0 do
+    a = if x < 0 do
       180 + a
     else
-      if v.y < 0 do
+      if y < 0 do
         360 + a
       else
         a
@@ -162,30 +102,30 @@ defmodule Vector do
   Vectors are in x,y screen coordinate, so 1,1 = 135D down to right
 
   ## Examples
-      iex> Vector.degrees(Vector.new(0, -1))
+      iex> Vector.degrees({0, -1)}
       0
-      iex> Vector.degrees(Vector.new(1, -1))
+      iex> Vector.degrees({1, -1)}
       45
-      iex> Vector.degrees(Vector.new(1, 0))
+      iex> Vector.degrees({1, 0)}
       90
-      iex> Vector.degrees(Vector.new(1, 1))
+      iex> Vector.degrees({1, 1)}
       135
-      iex> Vector.degrees(Vector.new(0, 1))
+      iex> Vector.degrees({0, 1)}
       180
-      iex> Vector.degrees(Vector.new(-1, 1))
+      iex> Vector.degrees({-1, 1)}
       225
-      iex> Vector.degrees(Vector.new(-1, 0))
+      iex> Vector.degrees({-1, 0)}
       270
-      iex> Vector.degrees(Vector.new(-1, -1))
+      iex> Vector.degrees({-1, -1)}
       315
   """
-  def degrees(%Vector{} = v) do
-    # Y is our "north" and it's pointing "right" to rotate.
-    y = new(0, -1)
-    d = dot(v, y)
+  def degrees({x, y}=v) do
+    # z is our "north" and it's pointing "right" to rotate.
+    z = {0, -1}
+    d = dot(v, z)
     cos_a = d / (mag(v) * mag(y))
     d = :math.acos(cos_a) * (180 / :math.pi)
-    if v.x < 0 do
+    if x < 0 do
       360 - d
     else
       d

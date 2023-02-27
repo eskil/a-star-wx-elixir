@@ -31,4 +31,15 @@ defmodule WxUtils do
     :wxPen.destroy(pen)
     :ok
   end
+
+  def wx_cls(dc, color) do
+    brush = :wxBrush.new(color, [{:style, Wx.wxSOLID}])
+    :ok = :wxDC.setBackground(dc, brush)
+    :ok = :wxDC.clear(dc)
+    :wxBrush.destroy(brush)
+  end
+
+  def wx_cls(dc) do
+    wx_cls(dc, {0, 0, 0})
+  end
 end

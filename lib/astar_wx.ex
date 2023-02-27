@@ -137,11 +137,7 @@ defmodule AstarWx do
     Logger.debug("paint event #{inspect event, pretty: true}")
 
     dc = state.wx_memory_dc
-    # cls
-    brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxSOLID}])
-    :ok = :wxDC.setBackground(dc, brush)
-    :ok = :wxDC.clear(dc)
-    :wxBrush.destroy(brush)
+    WxUtils.wx_cls(dc)
 
     red = {255, 0, 0}
     green = {0, 255, 0}
@@ -156,14 +152,7 @@ defmodule AstarWx do
 
     brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxTRANSPARENT}])
 
-    for {_name, points} <- state.polygons do
-      :wxDC.setPen(dc, blue_pen)
-      :wxDC.setBrush(dc, brush)
-      :ok = :wxDC.drawPolygon(dc, points)
-      for point <- points do
-        WxUtils.wx_crosshair(dc, point, red)
-      end
-    end
+    draw_polygons(dc, state.polygons)
 
     WxUtils.wx_crosshair(dc, state.start, green)
     if state.cursor do
@@ -253,6 +242,44 @@ defmodule AstarWx do
   ##
   ##
 
+  def draw_polygons(dc, polygons) do
+    blue = {0, 150, 255}
+    opaque_blue = {0, 150, 255, 64}
+
+    blue_pen = :wxPen.new(blue, [{:width,  1}, {:style, Wx.wxSOLID}])
+
+    brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxSOLID}])
+    opaque_blue_brush = :wxBrush.new(opaque_blue, [{:style, Wx.wxSOLID}])
+
+    {main, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+
+    :wxDC.setBrush(dc, opaque_blue_brush)
+    :wxDC.setPen(dc, blue_pen)
+    for {_name, points} <- main do
+      :ok = :wxDC.drawPolygon(dc, points)
+      for point <- points do
+        WxUtils.wx_crosshair(dc, point, blue)
+      end
+    end
+
+    :wxDC.setBrush(dc, brush)
+    :wxDC.setPen(dc, blue_pen)
+    for {_name, points} <- holes do
+      :ok = :wxDC.drawPolygon(dc, points)
+    end
+
+    for {_name, points} <- polygons do
+      for point <- points do
+        WxUtils.wx_crosshair(dc, point, blue)
+      end
+    end
+
+    :wxPen.destroy(blue_pen)
+    :wxBrush.destroy(brush)
+    :wxBrush.destroy(opaque_blue_brush)
+
+  end
+
   def draw_a_b_line(dc, {a, b}=line, polygons) do
     brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxTRANSPARENT}])
     :wxDC.setBrush(dc, brush)
@@ -260,30 +287,29 @@ defmodule AstarWx do
     light_gray = {211, 211, 211}
     light_gray_pen = :wxPen.new(light_gray, [{:width,  1}, {:style, Wx.wxSOLID}])
     :wxDC.setPen(dc, light_gray_pen)
-    :ok = :wxDC.drawLines(dc, [line])
+    :ok = :wxDC.drawLine(dc, a, b)
 
-    WxUtils.wx_crosshair(dc, b, light_gray)
+    WxUtils.wx_crosshair(dc, b, light_gray, size: 4)
 
     intersections = for {_name, points} <- polygons do
       Geo.intersections(line, points)
     end
     |> List.flatten
-
-    Logger.info("intersections = #{inspect intersections, pretty: true}")
-
-    sorted = Enum.sort(intersections, fn b, c ->
+    |> Enum.sort(fn b, c ->
       vb = Vector.sub(a, b)
       vc = Vector.sub(a, c)
-      Logger.info("a = #{inspect a}")
-      Logger.info("vb = #{inspect vb}")
-      Logger.info("vc = #{inspect vc}")
       Vector.distance(a, vb) < Vector.distance(a, vc)
     end)
-    Logger.info("sorted = #{inspect sorted, pretty: true}")
+    |> Enum.map(&(Vector.truncate(&1)))
 
-    # for p <- intersections do
-    #   WxUtils.wx_crosshair(dc, p, light_gray)
-    # end
+    for p <- intersections do
+      WxUtils.wx_crosshair(dc, p, light_gray, size: 3)
+    end
+
+    case intersections do
+      [] -> nil
+      [p|_] -> WxUtils.wx_crosshair(dc, p, {255, 0, 0}, size: 3)
+    end
 
     :wxPen.destroy(light_gray_pen)
     :wxBrush.destroy(brush)
