@@ -146,10 +146,12 @@ defmodule AstarWx do
     red = {255, 0, 0}
     green = {0, 255, 0}
     blue = {0, 150, 255}
+    light_gray = {211, 211, 211}
 
     red_pen = :wxPen.new(red, [{:width,  1}, {:style, Wx.wxSOLID}])
     green_pen = :wxPen.new(green, [{:width,  1}, {:style, Wx.wxSOLID}])
     blue_pen = :wxPen.new(blue, [{:width,  1}, {:style, Wx.wxSOLID}])
+    light_gray_pen = :wxPen.new(light_gray, [{:width,  1}, {:style, Wx.wxSOLID}])
     fat_blue_pen = :wxPen.new(blue, [{:width,  1}, {:style, Wx.wxSOLID}])
 
     brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxTRANSPARENT}])
@@ -165,9 +167,8 @@ defmodule AstarWx do
 
     WxUtils.wx_crosshair(dc, state.start, green)
     if state.cursor do
-      :wxDC.setPen(dc, blue_pen)
-      :ok = :wxDC.drawLine(dc, state.start, state.cursor)
-      WxUtils.wx_crosshair(dc, state.cursor, red)
+      line = {state.start, state.cursor}
+      draw_a_b_line(dc, line, state.polygons)
     end
 
     # Draw
@@ -179,6 +180,7 @@ defmodule AstarWx do
     :wxPen.destroy(red_pen)
     :wxPen.destroy(blue_pen)
     :wxPen.destroy(fat_blue_pen)
+    :wxPen.destroy(light_gray_pen)
     :wxPen.destroy(green_pen)
     :wxBrush.destroy(brush)
 
@@ -250,6 +252,42 @@ defmodule AstarWx do
   ##
   ##
   ##
+
+  def draw_a_b_line(dc, {a, b}=line, polygons) do
+    brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxTRANSPARENT}])
+    :wxDC.setBrush(dc, brush)
+
+    light_gray = {211, 211, 211}
+    light_gray_pen = :wxPen.new(light_gray, [{:width,  1}, {:style, Wx.wxSOLID}])
+    :wxDC.setPen(dc, light_gray_pen)
+    :ok = :wxDC.drawLines(dc, [line])
+
+    WxUtils.wx_crosshair(dc, b, light_gray)
+
+    intersections = for {_name, points} <- polygons do
+      Geo.intersections(line, points)
+    end
+    |> List.flatten
+
+    Logger.info("intersections = #{inspect intersections, pretty: true}")
+
+    sorted = Enum.sort(intersections, fn b, c ->
+      vb = Vector.sub(a, b)
+      vc = Vector.sub(a, c)
+      Logger.info("a = #{inspect a}")
+      Logger.info("vb = #{inspect vb}")
+      Logger.info("vc = #{inspect vc}")
+      Vector.distance(a, vb) < Vector.distance(a, vc)
+    end)
+    Logger.info("sorted = #{inspect sorted, pretty: true}")
+
+    # for p <- intersections do
+    #   WxUtils.wx_crosshair(dc, p, light_gray)
+    # end
+
+    :wxPen.destroy(light_gray_pen)
+    :wxBrush.destroy(brush)
+  end
 
   def transform_point([x, y]) do
     {trunc(x), trunc(y)}
