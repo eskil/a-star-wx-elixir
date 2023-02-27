@@ -1,42 +1,92 @@
 defmodule Vector do
+  @moduledoc """
+  Functions to work on vectors.
+
+  Vectors are represented as tuples of x and y coordinates, `{x, y}`.
+  """
+
+  @doc"""
+  Get the length a vector.
+  """
   def len({x, y}) do
     :math.sqrt(x * x + y * y)
   end
 
+  @doc"""
+  Add two vector together.
+  """
   def add({ax, ay}, {bx, by}) do
     {ax + bx, ay + by}
   end
 
+  @doc"""
+  Subtract a vector from another.
+  """
   def sub({ax, ay}, {bx, by}) do
     {ax - bx, ay - by}
   end
 
+  @doc"""
+  Divide a vector by a constant.
+  """
+  def div({x, y}, c) do
+    {x / c, y / c}
+  end
+
+  @doc"""
+  Multiply a vector by a constant.
+  """
+  def mul({x, y}, c) do
+    {x * c, y * c}
+  end
+
+  @doc"""
+  Get the distance of two vectors.
+  """
   def distance({_ax, _ay}=a, {_bx, _by}=b) do
     len(sub(b, a))
   end
 
+  @doc"""
+  Get the distance squared of two vectors.
+  """
   def distance_squared({ax, ay}, {bx, by}) do
     :math.pow(ax - bx, 2) + :math.pow(ay - by, 2)
   end
 
+  @doc"""
+  Normalise (len=1) a vector.
+  """
   def normalise({x, y}=v) do
     l = len(v)
     {x / l, y / l}
   end
 
+  @doc"""
+  Get the dot product of two vectors.
+  """
   def dot({ax, ay}, {bx, by}) do
     ax * bx + ay * by
   end
 
+  @doc"""
+  Get the cross product of two vectors.
+  """
   def cross({ax, ay}, {bx, by}) do
     ax * by - ay * bx
   end
 
+  @doc"""
+  Shorten a vector by a certain amount of "points".
+  """
   def shorten({x, y}=v, sz) do
     s = 1 - sz/len(v)
     {x * s, y * s}
   end
 
+  @doc"""
+  Get the magnitude of a vector
+  """
   def mag({x, y}) do
     :math.sqrt(:math.pow(x, 2) + :math.pow(y, 2))
   end
@@ -62,14 +112,14 @@ defmodule Vector do
   end
 
   @doc"""
-  Calls trunc on x & y to make the vector work with wx.
+  Calls trunc on a vector to make the vector work with wx.
   """
   def truncate({x, y}) do
     {trunc(x), trunc(y)}
   end
 
   @doc """
-  This is a graph oriented degree, ie. left is 0, up is 90 etc.
+  This is a graph oriented degree, ie. right is 0, up is 90 etc.
 
   ## Examples
       iex> alias Vector, as: Vector

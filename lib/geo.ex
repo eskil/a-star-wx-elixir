@@ -1,11 +1,38 @@
 defmodule Geo do
   require Logger
 
+  @doc """
+  Checks if a line intersects a polygon.
+
+  ## Params
+
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
+
+  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
+
+  Returns `true` or `false`.
+
+  """
+  # TODO: line/polygon oder is inconsistent
   def intersects?(line, polygon) do
     prev_point = List.last(polygon)
     intersects_helper(line, polygon, prev_point)
   end
 
+  @doc """
+  Get intersections of a line with a polygon.
+
+  ## Params
+
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
+
+  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
+
+  Returns a list of `{x, y}` tuples indicating where the line intersects, or
+  `[]` if there's no intersections.
+
+  """
+  # TODO: line/polygon oder is inconsistent
   def intersections(line, polygon) do
     prev_point = List.last(polygon)
     intersects_helper(line, polygon, prev_point, [])
@@ -16,6 +43,20 @@ defmodule Geo do
     |> Enum.map(fn {:intersection, point} -> point end)
   end
 
+  @doc """
+  Get first intersections of a line with a polygon.
+
+  ## Params
+
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
+
+  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
+
+  Returns a `{x, y}` tuples indicating where the line first intersects, or nil
+  if there's no intersection.
+
+  """
+  # TODO: line/polygon oder is inconsistent
   def intersection({a, _b} = line, polygon) do
     Enum.min_by(intersections(line, polygon), fn ip ->
       Vector.distance(a, ip)
@@ -114,6 +155,9 @@ defmodule Geo do
     Vector.cross(left, right) < 0
   end
 
+  @doc """
+  Check if a point is inside a polygon or not.
+  """
   def is_inside?(polygon, _point) when length(polygon) < 3 do
     false
   end
@@ -150,5 +194,84 @@ defmodule Geo do
         end
       end)
     is_inside
+  end
+
+  @doc """
+  Checks if there's a line-of-sight from `start` to `stop` within the map.
+
+  ## Params
+
+  * `polygon`, a list of `{x, y}` vertices. This is the main boundary map.
+
+  * `holes`, a list of lists of `{x, y}` vertices. These are holes within
+    `polygon`.
+
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
+
+  Returns ...
+
+  """
+  def is_line_of_sight?(polygon, holes, line) do
+    Logger.info("is los? #{inspect polygon} with holes #{inspect holes} on #{inspect line}")
+    #   bool InLineOfSight(Polygon polygon, Vector2 start, Vector2 end)
+    # {
+    #   // Not in LOS if any of the ends is outside the polygon
+    #   if (!polygon.Inside(start) || !polygon.Inside(end)) return false;
+    {start, stop} = line
+    if not is_inside?(polygon, start) or not is_inside?(polygon, stop) do
+      Logger.info("start or stop not inside polygon")
+      Logger.info("start #{inspect start} = #{is_inside?(polygon, start)}")
+      Logger.info("stop #{inspect stop} = #{is_inside?(polygon, stop)}")
+      false
+    else
+      #   // In LOS if it's the same start and end location
+      #   if (Vector2.Distance(start, end) < epsilon) return true;
+      if Vector.distance(start, stop) < 0.5 do
+        Logger.info("distance < 0.5")
+        true
+      else
+        #   // Not in LOS if any edge is intersected by the start-end line segment
+        #   foreach (var vertices in polygon) {
+        #     var n = vertices.Count;
+        #     for (int i = 0; j < n; i++)
+        #       if (LineSegmentsCross(start, end, vertices[i], vertices[(i+1)%n]))
+        #         return false;
+        #   }
+        # TODO: use Enum.any?
+        rv = Enum.reduce_while([{:main, polygon}] ++ holes, true, fn {name, points}, _acc ->
+          Logger.info("Checking intersect with #{name} #{inspect points}")
+          # TODO: line/polygon oder is inconsistent
+          if intersections(line, points) == [] do
+            Logger.info("Intersect with #{name}, no")
+            {:cont, true}
+          else
+            Logger.info("Intersect with #{name}, YES")
+            {:halt, false}
+          end
+        end)
+        if not rv do
+          rv
+        else
+          #   // Finally the middle point in the segment determines if in LOS or not
+          #   return polygon.Inside((start + end) / 2f);
+          # }
+          middle = Vector.div(Vector.add(start, stop), 2)
+          acc = is_inside?(polygon, middle)
+          Logger.info("Middle #{inspect middle} inside main = #{acc}")
+          # TODO: use Enum.any??
+          acc = Enum.reduce(holes, acc, fn {name, points}, acc ->
+            if is_inside?(points, middle) do
+              Logger.info("Middle #{inspect middle} is inside #{name} = #{acc}")
+              false
+            else
+              Logger.info("Middle #{inspect middle} not inside #{name} = #{acc}")
+              acc
+            end
+          end)
+          acc
+        end
+      end
+    end
+
   end
 end

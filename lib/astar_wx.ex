@@ -246,9 +246,14 @@ defmodule AstarWx do
 
   def draw_cursor(dc, cursor, polygons) do
     light_gray = {211, 211, 211}
+    bright_green = {170, 255, 0}
+
+    # TODO: this is done a lot, commoditise?
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+
     if Geo.is_inside?(mains[:main], cursor) do
-      is_in_hole = Enum.reduce_while(holes, false, fn {_name, points}, is_in_hole ->
+      # TODO: use Enum.any??
+      is_in_hole = Enum.reduce_while(holes, false, fn {_name, points}, _acc ->
         if Geo.is_inside?(points, cursor) do
           {:halt, true}
         else
@@ -258,7 +263,7 @@ defmodule AstarWx do
       if is_in_hole do
         WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)
       else
-        WxUtils.wx_crosshair(dc, cursor, {0, 255, 0}, size: 6)
+        WxUtils.wx_crosshair(dc, cursor, bright_green, size: 6)
       end
     else
       WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)
@@ -328,7 +333,16 @@ defmodule AstarWx do
 
     light_gray = {211, 211, 211}
     light_gray_pen = :wxPen.new(light_gray, [{:width,  1}, {:style, Wx.wxSOLID}])
-    :wxDC.setPen(dc, light_gray_pen)
+
+    bright_green = {170, 255, 0}
+    bright_green_pen = :wxPen.new(bright_green, [{:width,  1}, {:style, Wx.wxSOLID}])
+
+    {main, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+    if Geo.is_line_of_sight?(main[:main], holes, line) do
+      :wxDC.setPen(dc, bright_green_pen)
+    else
+      :wxDC.setPen(dc, light_gray_pen)
+    end
     :ok = :wxDC.drawLine(dc, a, b)
 
     intersections = for {_name, points} <- polygons do
@@ -352,6 +366,7 @@ defmodule AstarWx do
     end
 
     :wxPen.destroy(light_gray_pen)
+    :wxPen.destroy(bright_green_pen)
     :wxBrush.destroy(brush)
   end
 
