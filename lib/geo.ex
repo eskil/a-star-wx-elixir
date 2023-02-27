@@ -69,6 +69,32 @@ defmodule Geo do
   end
 
   @doc"""
+  Split polygon into concave and convex vertices.
+
+  ## Params
+  * `polygon`, a list of `{x, y}` tuples outlining a polygon. This must be non-closed.
+
+  Returns `{list of concave vertices, list of convex}`.
+  """
+  def classify_vertices(polygon) do
+    # We prepend the last vertex (-1) to the list and chunk into threes. That
+    # way we have a list of triples that describe each {prev, current, next}
+    # vertex set. We apply the logic to determine if it's concave. Finally
+    # split by concave and filter out the boolean.
+    {concave, convex} =
+      Enum.chunk_every([Enum.at(polygon, -1)] ++ polygon, 3, 1, Enum.slice(polygon, 0, 2))
+      |> Enum.map(fn [prev, current, next] ->
+        left = Vector.sub(current, prev)
+        right = Vector.sub(next, current)
+        {current, Vector.cross(left, right) < 0}
+      end)
+      |> Enum.split_with(fn {_, is_concave} -> is_concave end)
+
+    # finally remove the is_concave bit
+    {Enum.map(concave, fn {p, _} -> p end), Enum.map(convex, fn {p, _} -> p end)}
+  end
+
+  @doc"""
   Determines if a vertex is concave or not.
 
   ## Params
@@ -82,14 +108,6 @@ defmodule Geo do
     next = Enum.at(polygon, rem(at+1, length(polygon)))
     current = Enum.at(polygon, at)
     prev = Enum.at(polygon, at-1)
-    Logger.info("is_concave #{inspect polygon} #{at}")
-    Logger.info("is_concave prev #{inspect prev}")
-    Logger.info("is_concave current #{inspect current}")
-    Logger.info("is_concave next #{inspect next}")
-
-    {next_x, next_y} = next
-    {current_x, current_y} = current
-    {prev_x, prev_y} = prev
 
     left = Vector.sub(current, prev)
     right = Vector.sub(next, current)
