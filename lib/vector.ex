@@ -16,7 +16,7 @@ defmodule Vector do
   end
 
   def distance_squared({ax, ay}, {bx, by}) do
-    :math.pow(bx-ax, 2) + :math.pow(by - ay, 2)
+    :math.pow(ax - bx, 2) + :math.pow(ay - by, 2)
   end
 
   def normalise({x, y}=v) do

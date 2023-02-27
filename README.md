@@ -13,6 +13,7 @@ coordinates. In elixir, it looks like
 
 ```elixir
 polygon = [{x, y}, {x, y}, ...]
+```
 
 The screen coordinate `0, 0` is upper left the x-axis goes
 left-to-right and y-axis top-to-bottom.

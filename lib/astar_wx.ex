@@ -375,7 +375,7 @@ defmodule AstarWx do
 
   def load_scene() do
     path = Application.app_dir(:astarwx)
-    filename = "#{path}/priv/scene1.json"
+    filename = "#{path}/priv/scene2.json"
     Logger.info("Processing #{filename}")
     {:ok, file} = File.read(filename)
     {:ok, json} = Poison.decode(file, keys: :atoms)
