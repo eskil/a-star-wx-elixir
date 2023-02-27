@@ -87,21 +87,21 @@ defmodule Geo do
     intersects_helper(line, polygon, next_point, acc ++ [v])
   end
 
-  defp line_segment_intersection({{x1, y1}, {x2, y2}}, {{x3, y3}, {x4, y4}}) do
-    den = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1)
+  defp line_segment_intersection({{ax1, ay1}, {ax2, ay2}}=_line1, {{bx1, by1}, {bx2, by2}}=_line2) do
+    den = (by2 - by1) * (ax2 - ax1) - (bx2 - bx1) * (ay2 - ay1)
 
     if den == 0 do
-      if (y3 - y1) * (x2 - x1) == (x3 - x1) * (y2 - y1) do
+      if (by1 - ay1) * (ax2 - ax1) == (bx1 - ax1) * (ay2 - ay1) do
         :on_segment
       else
         :parallel
       end
     else
-      ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / den
-      ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / den
+      ua = ((bx2 - bx1) * (ay1 - by1) - (by2 - by1) * (ax1 - bx1)) / den
+      ub = ((ax2 - ax1) * (ay1 - by1) - (ay2 - ay1) * (ax1 - bx1)) / den
 
       if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 do
-        {x, y} = {x1 + ua * (x2 - x1), y1 + ua * (y2 - y1)}
+        {x, y} = {ax1 + ua * (ax2 - ax1), ay1 + ua * (ay2 - ay1)}
         {:intersection, {x, y}}
       else
         :none
@@ -158,12 +158,14 @@ defmodule Geo do
   @doc """
   Check if a point is inside a polygon or not.
   """
-  def is_inside?(polygon, _point) when length(polygon) < 3 do
+  def is_inside?(polygon, point, opts \\ [])
+
+  def is_inside?(polygon, _point, _opts) when length(polygon) < 3 do
     false
   end
 
   # See https://www.david-gouveia.com/pathfinding-on-a-2d-polygonal-map
-  def is_inside?(polygon, point) do
+  def is_inside?(polygon, point, opts) do
     epsilon = 0.5
 
     prev = Enum.at(polygon, -1)
@@ -174,7 +176,9 @@ defmodule Geo do
         sq_dist = Vector.distance_squared(current, point)
         if (prev_sq_dist + sq_dist + 2.0 * :math.sqrt(prev_sq_dist * sq_dist) - Vector.distance_squared(current, prev) < epsilon) do
           # "return toleranceOnOutside"
-          {:halt, {prev, prev_sq_dist, false}}
+          allow = Keyword.get(opts, :allow_border, true)
+          Logger.info("\t\thit tolerance case, #{(prev_sq_dist + sq_dist + 2.0 * :math.sqrt(prev_sq_dist * sq_dist) - Vector.distance_squared(current, prev))} allow=#{allow}")
+          {:halt, {prev, prev_sq_dist, allow}}
         else
           {x, y} = point
           {px, _py} = prev
@@ -217,12 +221,17 @@ defmodule Geo do
     #   // Not in LOS if any of the ends is outside the polygon
     #   if (!polygon.Inside(start) || !polygon.Inside(end)) return false;
     {start, stop} = line
+    Logger.info("is_line_of_sight? #{inspect polygon}")
+    Logger.info("                  #{inspect holes}")
+    Logger.info("                  #{inspect line}")
     if not is_inside?(polygon, start) or not is_inside?(polygon, stop) do
+      Logger.info("                  OUTSIDE #{is_inside?(polygon, start)} #{is_inside?(polygon, stop)}")
       false
     else
       #   // In LOS if it's the same start and end location
       #   if (Vector2.Distance(start, end) < epsilon) return true;
       if Vector.distance(start, stop) < 0.5 do
+        Logger.info(" near, yes")
         true
       else
         #   // Not in LOS if any edge is intersected by the start-end line segment
@@ -233,15 +242,19 @@ defmodule Geo do
         #         return false;
         #   }
         # TODO: use Enum.any?
-        rv = Enum.reduce_while([{:main, polygon}] ++ holes, true, fn {name, points}, _acc ->
+        rv =
+          Enum.reduce_while([{:main, polygon}] ++ holes, true, fn {name, points}, _acc ->
           # TODO: line/polygon oder is inconsistent
           if intersections(line, points) == [] do
+            Logger.info("\tno intersects #{name}")
             {:cont, true}
           else
+            Logger.info("\tintersects #{name} #{inspect intersections(line, polygon)}")
             {:halt, false}
           end
         end)
         if not rv do
+          Logger.info(" no")
           rv
         else
           #   // Finally the middle point in the segment determines if in LOS or not
@@ -250,13 +263,14 @@ defmodule Geo do
           middle = Vector.div(Vector.add(start, stop), 2)
           acc = is_inside?(polygon, middle)
           # TODO: use Enum.any??
-          acc = Enum.reduce(holes, acc, fn {name, points}, acc ->
-            if is_inside?(points, middle) do
+          acc = Enum.reduce(holes, acc, fn {_name, points}, acc ->
+            if is_inside?(points, middle, allow_border: false) do
               false
             else
               acc
             end
           end)
+          Logger.info(" yes by half")
           acc
         end
       end

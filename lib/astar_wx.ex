@@ -119,6 +119,8 @@ defmodule AstarWx do
     state
   ) do
     Logger.info("click #{inspect {x, y}} #{left_down}")
+    vertices = get_walk_vertices(state.polygons)
+    _graph = create_walk_graph(state.polygons, vertices)
     {:noreply, state}
   end
 
@@ -370,6 +372,47 @@ defmodule AstarWx do
     :wxBrush.destroy(brush)
   end
 
+  def get_walk_vertices(polygons) do
+    # TODO: this is done a lot, commoditise?
+    {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+
+    {concave, _} = Enum.reduce(mains, {[], []}, fn {name, points}, {acc_concave, acc_convex} ->
+      {concave, convex} = Geo.classify_vertices(points)
+      Logger.info("polygon #{name} has concave #{inspect concave}")
+      {acc_concave ++ concave, acc_convex ++ convex}
+    end)
+
+    {_, convex} = Enum.reduce(holes, {[], []}, fn {name, points}, {acc_concave, acc_convex} ->
+      {concave, convex} = Geo.classify_vertices(points)
+      Logger.info("polygon #{name} has convex #{inspect convex}")
+      {acc_concave ++ concave, acc_convex ++ convex}
+    end)
+    Logger.info("walk vertices = #{inspect concave++convex}")
+    concave ++ convex
+  end
+
+  def create_walk_graph(polygons, vertices) do
+    # TODO: this is done a lot, commoditise?
+    {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+
+    {_, all_edges} =
+      Enum.reduce(vertices, {0, []}, fn a, {a_idx, edges} ->
+        {_, inner_edges} =
+          Enum.reduce(vertices, {0, []}, fn b, {b_idx, edges} ->
+            if a_idx != b_idx and Geo.is_line_of_sight?(mains[:main], holes, {a, b}) do
+              # TODO: use idx or actual points?
+              {b_idx + 1, edges ++ [{a_idx, b_idx, Vector.distance(a, b)}]}
+            else
+              {b_idx + 1, edges}
+            end
+          end)
+        {a_idx + 1, edges ++ inner_edges}
+      end)
+
+    Logger.info("all edges #{inspect all_edges}\n\n\n")
+    all_edges
+  end
+
   def transform_point([x, y]) do
     {trunc(x), trunc(y)}
   end
@@ -401,7 +444,7 @@ defmodule AstarWx do
 
   def load_scene() do
     path = Application.app_dir(:astarwx)
-    filename = "#{path}/priv/scene2.json"
+    filename = "#{path}/priv/scene1.json"
     Logger.info("Processing #{filename}")
     {:ok, file} = File.read(filename)
     {:ok, json} = Poison.decode(file, keys: :atoms)
