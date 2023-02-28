@@ -99,7 +99,7 @@ defmodule Geo do
     else
       ua = ((bx2 - bx1) * (ay1 - by1) - (by2 - by1) * (ax1 - bx1)) / den
       ub = ((ax2 - ax1) * (ay1 - by1) - (ay2 - ay1) * (ax1 - bx1)) / den
-
+      Logger.info("\t\tua = #{ua} ub = #{ub}")
       if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 do
         {x, y} = {ax1 + ua * (ax2 - ax1), ay1 + ua * (ay2 - ay1)}
         {:intersection, {x, y}}
@@ -275,6 +275,5 @@ defmodule Geo do
         end
       end
     end
-
   end
 end
