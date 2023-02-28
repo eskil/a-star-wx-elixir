@@ -45,6 +45,12 @@ defmodule AstarWx do
 
     {start, polygons} = load_scene()
 
+    Logger.info("\n\n\n")
+    vertices = get_walk_vertices(polygons)
+    graph = create_walk_graph(polygons, vertices)
+    walkgraph = reduce_walk_graph(graph)
+    Logger.info("r = #{inspect walkgraph}")
+
     state = %{
       wx_frame: frame,
       wx_panel: panel,
@@ -59,7 +65,7 @@ defmodule AstarWx do
       polygons: polygons,
       cursor: nil,
 
-      walkgraph: %{},
+      walkgraph: walkgraph,
     }
     {frame, state}
   end
@@ -120,13 +126,8 @@ defmodule AstarWx do
                      _wheel_rotation, _wheel_delta, _lines_per_action}} = _event,
     state
   ) do
-    Logger.info("\n\n\n")
     Logger.info("click #{inspect {x, y}} #{left_down}")
-    vertices = get_walk_vertices(state.polygons)
-    graph = create_walk_graph(state.polygons, vertices)
-    r = reduce_walk_graph(graph)
-    Logger.info("r = #{inspect r}")
-    {:noreply, %{state | walkgraph: r}}
+    {:noreply, state}
   end
 
   @impl true
@@ -140,17 +141,12 @@ defmodule AstarWx do
   ##
 
   @impl true
-  def handle_sync_event({:wx, _, _, _, {:wxPaint, :paint}} = event, _, state) do
-    Logger.debug("paint event #{inspect event, pretty: true}")
-
+  def handle_sync_event({:wx, _, _, _, {:wxPaint, :paint}}=_event, _, state) do
     dc = state.wx_memory_dc
     WxUtils.wx_cls(dc)
 
-    red = {255, 0, 0}
     light_red = {255, 0, 0, 128}
     green = {0, 255, 0}
-    blue = {0, 150, 255}
-    light_gray = {211, 211, 211}
 
     light_red_pen = :wxPen.new(light_red, [{:width,  1}, {:style, Wx.wxSOLID}])
 
@@ -195,7 +191,6 @@ defmodule AstarWx do
   @impl true
   def handle_info(:tick, state) do
     start_ms = System.convert_time_unit(System.monotonic_time, :native, :millisecond)
-    Logger.debug("Tick at #{start_ms}ms #{inspect state, pretty: true}")
 
     new_state = update(state)
     render(new_state)
@@ -203,7 +198,6 @@ defmodule AstarWx do
     end_ms = System.convert_time_unit(System.monotonic_time, :native, :millisecond)
     elapsed = trunc(end_ms - start_ms)
     pause = max(0, state[:slice] - elapsed)
-    Logger.debug("Elapsed #{elapsed}ms, pausing #{pause}ms")
 
     timer_ref = Process.send_after(self(), :tick, pause)
     {:noreply, %{new_state | timer_ref: timer_ref}}
@@ -236,7 +230,6 @@ defmodule AstarWx do
   end
 
   def render(state) do
-    Logger.debug("render")
     :wxPanel.refresh(state.wx_panel, eraseBackground: false)
   end
 
@@ -272,6 +265,8 @@ defmodule AstarWx do
     else
       WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)
     end
+
+    WxUtils.wx_crosshair(dc, {400, 300}, {255, 0, 0}, size: 12)
   end
 
   def draw_polygons(dc, polygons) do
@@ -417,7 +412,7 @@ defmodule AstarWx do
 
   def reduce_walk_graph(graph) do
     graph
-    |> Enum.map(fn {{{ax, ay}=a, {bx, by}=b}, dist} ->
+    |> Enum.map(fn {{{ax, _ay}=a, {bx, _by}=b}, dist} ->
       if ax < bx do
         {{a, b}, dist}
       else

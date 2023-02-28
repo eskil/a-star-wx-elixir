@@ -5,6 +5,6 @@ config :astarwx,
 
 config :logger,
   :console,
-  level: :info,
+  level: :debug,
   format: "[$level] $message $metadata\n",
   metadata: [:error_code, :file, :line]

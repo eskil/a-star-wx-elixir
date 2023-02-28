@@ -87,32 +87,37 @@ defmodule Geo do
     intersects_helper(line, polygon, next_point, acc ++ [v])
   end
 
+  # See https://khorbushko.github.io/article/2021/07/15/the-area-polygon-or-how-to-detect-line-segments-intersection.html for an explanation.
+  #
   # iex> Geo.intersection({{50, 49}, {50, 100}}, [{10, 10}, {100, 10}, {50, 50}])
   #  iex> Geo.intersection({{50, 50}, {50, 100}}, [{10, 10}, {100, 10}, {50, 50}])
   #  iex> Geo.intersection({{50, 51}, {50, 100}}, [{10, 10}, {100, 10}, {50, 50}])
   defp line_segment_intersection({{ax1, ay1}, {ax2, ay2}}=line1, {{bx1, by1}, {bx2, by2}}=line2) do
+    Logger.debug("\tintersection #{inspect line1} with #{inspect line2}")
     den = (by2 - by1) * (ax2 - ax1) - (bx2 - bx1) * (ay2 - ay1)
 
     if den == 0 do
       if (by1 - ay1) * (ax2 - ax1) == (bx1 - ax1) * (ay2 - ay1) do
-        Logger.debug("on #{inspect line1}, #{inspect line2}")
+        Logger.debug("\t\ton onsegment")
         :on_segment
       else
-        Logger.debug("par #{inspect line1}, #{inspect line2}")
+        Logger.debug("\t\tparallel")
         :parallel
       end
     else
       ua = ((bx2 - bx1) * (ay1 - by1) - (by2 - by1) * (ax1 - bx1)) / den
       ub = ((ax2 - ax1) * (ay1 - by1) - (ay2 - ay1) * (ax1 - bx1)) / den
-      Logger.debug("\tua #{ua}")
-      Logger.debug("\tub #{ub}")
+      Logger.debug("\t\tua #{ua}")
+      Logger.debug("\t\tub #{ub}")
       # The "and not (ua == 0.0 or ub == 0.0)" part ensures no intersection on points
-      if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 and not (ua == 0.0 or ub == 0.0) do
+      # if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 do
+      # if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 and not (ua == 0.0 or ub == 0.0) do
+      if ua > 0.0 and ua < 1.0 and ub > 0.0 and ub < 1.0 and not (ua == 0.0 or ub == 0.0) do
         {x, y} = {ax1 + ua * (ax2 - ax1), ay1 + ua * (ay2 - ay1)}
-        Logger.debug("hit #{inspect line1}, #{inspect line2} = #{inspect {x, y}}")
+        Logger.debug("\t\thit at #{inspect {x, y}}")
         {:intersection, {x, y}}
       else
-        Logger.debug("nyet #{inspect line1}, #{inspect line2}")
+        Logger.debug("\t\tnone")
         :none
       end
     end
@@ -182,6 +187,7 @@ defmodule Geo do
     Vector.cross(left, right) < 0
   end
 
+  # Alternate, https://sourceforge.net/p/polyclipping/code/HEAD/tree/trunk/cpp/clipper.cpp#l438
   @doc """
   Check if a point is inside a polygon or not.
   """
@@ -268,8 +274,7 @@ defmodule Geo do
         # TODO: use Enum.any?
         rv =
           Enum.reduce_while([{:main, polygon}] ++ holes, true, fn {name, points}, _acc ->
-            # TODO: line/polygon oder is inconsistent
-            is_line_of_sight_helper(name, points, line, :new)
+            is_line_of_sight_helper(name, points, line, :original)
           end)
         if not rv do
           Logger.debug("\tno")
@@ -288,7 +293,7 @@ defmodule Geo do
               acc
             end
           end)
-          Logger.debug(" yes by half")
+          Logger.debug("\t#{acc} by half #{inspect middle}")
           acc
         end
       end
@@ -299,28 +304,31 @@ defmodule Geo do
     pointsets = Enum.chunk_every(points, 2, 1, Enum.slice(points, 0, 2))
     if Enum.reduce_while(pointsets, false, fn [a, b]=_polygon_segment, _acc ->
           if lines_intersect({a, b}, line) do
-            Logger.debug("\tintersects #{name}")
+            Logger.debug("\t\t\tintersects #{name}")
             {:halt, false}
           else
-            Logger.debug("\tno intersects #{name}")
+            Logger.debug("\t\t\tno intersects #{name}")
             {:cont, true}
           end
         end)
       do
-      Logger.debug("\tintersects #{name}")
+      Logger.debug("\t\t\tintersects #{name}")
       {:cont, true}
       else
-        Logger.debug("\tno intersects #{name}")
+        Logger.debug("\t\t\tno intersects #{name}")
         {:halt, false}
     end
   end
 
   defp is_line_of_sight_helper(name, points, line, :original) do
+    # TODO: line/polygon oder is inconsistent
     if intersections(line, points) == [] do
-      Logger.debug("\tno intersects #{name}")
+      Logger.debug("\t\t\tno intersects #{name}")
       {:cont, true}
     else
-      Logger.debug("\tintersects #{name}")
+      # NOTE: maybe if I apply "is_inside" to intersection points with allow
+      # border=false to check?
+      Logger.debug("\t\t\tintersects #{name}")
       {:halt, false}
     end
   end
