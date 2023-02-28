@@ -58,6 +58,8 @@ defmodule AstarWx do
       start: start,
       polygons: polygons,
       cursor: nil,
+
+      walkgraph: %{},
     }
     {frame, state}
   end
@@ -118,10 +120,13 @@ defmodule AstarWx do
                      _wheel_rotation, _wheel_delta, _lines_per_action}} = _event,
     state
   ) do
+    Logger.info("\n\n\n")
     Logger.info("click #{inspect {x, y}} #{left_down}")
     vertices = get_walk_vertices(state.polygons)
-    _graph = create_walk_graph(state.polygons, vertices)
-    {:noreply, state}
+    graph = create_walk_graph(state.polygons, vertices)
+    r = reduce_walk_graph(graph)
+    Logger.info("r = #{inspect r}")
+    {:noreply, %{state | walkgraph: r}}
   end
 
   @impl true
@@ -142,15 +147,12 @@ defmodule AstarWx do
     WxUtils.wx_cls(dc)
 
     red = {255, 0, 0}
+    light_red = {255, 0, 0, 128}
     green = {0, 255, 0}
     blue = {0, 150, 255}
     light_gray = {211, 211, 211}
 
-    red_pen = :wxPen.new(red, [{:width,  1}, {:style, Wx.wxSOLID}])
-    green_pen = :wxPen.new(green, [{:width,  1}, {:style, Wx.wxSOLID}])
-    blue_pen = :wxPen.new(blue, [{:width,  1}, {:style, Wx.wxSOLID}])
-    light_gray_pen = :wxPen.new(light_gray, [{:width,  1}, {:style, Wx.wxSOLID}])
-    fat_blue_pen = :wxPen.new(blue, [{:width,  1}, {:style, Wx.wxSOLID}])
+    light_red_pen = :wxPen.new(light_red, [{:width,  1}, {:style, Wx.wxSOLID}])
 
     brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxTRANSPARENT}])
 
@@ -163,6 +165,10 @@ defmodule AstarWx do
       draw_cursor(dc, state.cursor, state.polygons)
     end
 
+    :wxDC.setPen(dc, light_red_pen)
+    for {{a, b}, _} <- state.walkgraph do
+      :ok = :wxDC.drawLine(dc, a, b)
+    end
 
     # Draw
     paint_dc = :wxPaintDC.new(state.wx_panel)
@@ -170,11 +176,7 @@ defmodule AstarWx do
 
     # Cleanup :-/
     :wxPaintDC.destroy(paint_dc)
-    :wxPen.destroy(red_pen)
-    :wxPen.destroy(blue_pen)
-    :wxPen.destroy(fat_blue_pen)
-    :wxPen.destroy(light_gray_pen)
-    :wxPen.destroy(green_pen)
+    :wxPen.destroy(light_red_pen)
     :wxBrush.destroy(brush)
 
     :ok
@@ -248,7 +250,7 @@ defmodule AstarWx do
 
   def draw_cursor(dc, cursor, polygons) do
     light_gray = {211, 211, 211}
-    bright_green = {170, 255, 0}
+    bright_green = {0, 255, 0}
 
     # TODO: this is done a lot, commoditise?
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
@@ -333,10 +335,10 @@ defmodule AstarWx do
     brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxTRANSPARENT}])
     :wxDC.setBrush(dc, brush)
 
-    light_gray = {211, 211, 211}
+    light_gray = {211, 211, 211, 128}
     light_gray_pen = :wxPen.new(light_gray, [{:width,  1}, {:style, Wx.wxSOLID}])
 
-    bright_green = {170, 255, 0}
+    bright_green = {0, 255, 0}
     bright_green_pen = :wxPen.new(bright_green, [{:width,  1}, {:style, Wx.wxSOLID}])
 
     {main, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
@@ -401,7 +403,7 @@ defmodule AstarWx do
           Enum.reduce(vertices, {0, []}, fn b, {b_idx, edges} ->
             if a_idx != b_idx and Geo.is_line_of_sight?(mains[:main], holes, {a, b}) do
               # TODO: use idx or actual points?
-              {b_idx + 1, edges ++ [{a_idx, b_idx, Vector.distance(a, b)}]}
+              {b_idx + 1, edges ++ [{{a, b}, Vector.distance(a, b)}]}
             else
               {b_idx + 1, edges}
             end
@@ -411,6 +413,18 @@ defmodule AstarWx do
 
     Logger.info("all edges #{inspect all_edges}\n\n\n")
     all_edges
+  end
+
+  def reduce_walk_graph(graph) do
+    graph
+    |> Enum.map(fn {{{ax, ay}=a, {bx, by}=b}, dist} ->
+      if ax < bx do
+        {{a, b}, dist}
+      else
+        {{b, a}, dist}
+      end
+    end)
+    |> Map.new
   end
 
   def transform_point([x, y]) do
@@ -444,7 +458,7 @@ defmodule AstarWx do
 
   def load_scene() do
     path = Application.app_dir(:astarwx)
-    filename = "#{path}/priv/scene1.json"
+    filename = "#{path}/priv/scene2.json"
     Logger.info("Processing #{filename}")
     {:ok, file} = File.read(filename)
     {:ok, json} = Poison.decode(file, keys: :atoms)

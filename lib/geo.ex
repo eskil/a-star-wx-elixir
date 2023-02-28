@@ -40,7 +40,7 @@ defmodule Geo do
       {:intersection, _} -> true
       _ -> false
     end)
-    |> Enum.map(fn {:intersection, point} -> point end)
+    |> Enum.map(fn {_, point} -> point end)
   end
 
   @doc """
@@ -87,24 +87,51 @@ defmodule Geo do
     intersects_helper(line, polygon, next_point, acc ++ [v])
   end
 
-  defp line_segment_intersection({{ax1, ay1}, {ax2, ay2}}=_line1, {{bx1, by1}, {bx2, by2}}=_line2) do
+  # iex> Geo.intersection({{50, 49}, {50, 100}}, [{10, 10}, {100, 10}, {50, 50}])
+  #  iex> Geo.intersection({{50, 50}, {50, 100}}, [{10, 10}, {100, 10}, {50, 50}])
+  #  iex> Geo.intersection({{50, 51}, {50, 100}}, [{10, 10}, {100, 10}, {50, 50}])
+  defp line_segment_intersection({{ax1, ay1}, {ax2, ay2}}=line1, {{bx1, by1}, {bx2, by2}}=line2) do
     den = (by2 - by1) * (ax2 - ax1) - (bx2 - bx1) * (ay2 - ay1)
 
     if den == 0 do
       if (by1 - ay1) * (ax2 - ax1) == (bx1 - ax1) * (ay2 - ay1) do
+        Logger.debug("on #{inspect line1}, #{inspect line2}")
         :on_segment
       else
+        Logger.debug("par #{inspect line1}, #{inspect line2}")
         :parallel
       end
     else
       ua = ((bx2 - bx1) * (ay1 - by1) - (by2 - by1) * (ax1 - bx1)) / den
       ub = ((ax2 - ax1) * (ay1 - by1) - (ay2 - ay1) * (ax1 - bx1)) / den
-      Logger.info("\t\tua = #{ua} ub = #{ub}")
-      if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 do
+      Logger.debug("\tua #{ua}")
+      Logger.debug("\tub #{ub}")
+      # The "and not (ua == 0.0 or ub == 0.0)" part ensures no intersection on points
+      if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 and not (ua == 0.0 or ub == 0.0) do
         {x, y} = {ax1 + ua * (ax2 - ax1), ay1 + ua * (ay2 - ay1)}
+        Logger.debug("hit #{inspect line1}, #{inspect line2} = #{inspect {x, y}}")
         {:intersection, {x, y}}
       else
+        Logger.debug("nyet #{inspect line1}, #{inspect line2}")
         :none
+      end
+    end
+  end
+
+  # ported from http://www.david-gouveia.com/portfolio/pathfinding-on-a-2d-polygonal-map/
+  def lines_intersect({{ax1, ay1}, {ax2, ay2}}=_l1, {{bx1, by1}, {bx2, by2}}=_l2) do
+    den = ((ax2 - ax1) * (by2 - by1)) - ((ay2 - ay1) * (bx2 - bx1))
+    if den == 0 do
+      false
+    else
+      num1 = ((ay1 - by1) * (bx2 - bx1)) - ((ax1 - bx1) * (by2 - by1))
+      num2 = ((ay1 - by1) * (ax2 - ax1)) - ((ax1 - bx1) * (ay2 - ay1))
+      if (num1 == 0 or num2 == 0) do
+        false
+      else
+        r = num1 / den
+        s = num2 / den
+        (r > 0 and r < 1) and (s > 0 and s < 1)
       end
     end
   end
@@ -177,7 +204,6 @@ defmodule Geo do
         if (prev_sq_dist + sq_dist + 2.0 * :math.sqrt(prev_sq_dist * sq_dist) - Vector.distance_squared(current, prev) < epsilon) do
           # "return toleranceOnOutside"
           allow = Keyword.get(opts, :allow_border, true)
-          Logger.info("\t\thit tolerance case, #{(prev_sq_dist + sq_dist + 2.0 * :math.sqrt(prev_sq_dist * sq_dist) - Vector.distance_squared(current, prev))} allow=#{allow}")
           {:halt, {prev, prev_sq_dist, allow}}
         else
           {x, y} = point
@@ -221,17 +247,15 @@ defmodule Geo do
     #   // Not in LOS if any of the ends is outside the polygon
     #   if (!polygon.Inside(start) || !polygon.Inside(end)) return false;
     {start, stop} = line
-    Logger.info("is_line_of_sight? #{inspect polygon}")
-    Logger.info("                  #{inspect holes}")
-    Logger.info("                  #{inspect line}")
+    Logger.debug("is_line_of_sight? #{inspect line}")
     if not is_inside?(polygon, start) or not is_inside?(polygon, stop) do
-      Logger.info("                  OUTSIDE #{is_inside?(polygon, start)} #{is_inside?(polygon, stop)}")
+      Logger.debug("\toutside #{is_inside?(polygon, start)} #{is_inside?(polygon, stop)}")
       false
     else
       #   // In LOS if it's the same start and end location
       #   if (Vector2.Distance(start, end) < epsilon) return true;
       if Vector.distance(start, stop) < 0.5 do
-        Logger.info(" near, yes")
+        Logger.debug("\tnear, yes")
         true
       else
         #   // Not in LOS if any edge is intersected by the start-end line segment
@@ -244,17 +268,11 @@ defmodule Geo do
         # TODO: use Enum.any?
         rv =
           Enum.reduce_while([{:main, polygon}] ++ holes, true, fn {name, points}, _acc ->
-          # TODO: line/polygon oder is inconsistent
-          if intersections(line, points) == [] do
-            Logger.info("\tno intersects #{name}")
-            {:cont, true}
-          else
-            Logger.info("\tintersects #{name} #{inspect intersections(line, polygon)}")
-            {:halt, false}
-          end
-        end)
+            # TODO: line/polygon oder is inconsistent
+            is_line_of_sight_helper(name, points, line, :new)
+          end)
         if not rv do
-          Logger.info(" no")
+          Logger.debug("\tno")
           rv
         else
           #   // Finally the middle point in the segment determines if in LOS or not
@@ -270,10 +288,40 @@ defmodule Geo do
               acc
             end
           end)
-          Logger.info(" yes by half")
+          Logger.debug(" yes by half")
           acc
         end
       end
+    end
+  end
+
+  defp is_line_of_sight_helper(name, points, line, :new) do
+    pointsets = Enum.chunk_every(points, 2, 1, Enum.slice(points, 0, 2))
+    if Enum.reduce_while(pointsets, false, fn [a, b]=_polygon_segment, _acc ->
+          if lines_intersect({a, b}, line) do
+            Logger.debug("\tintersects #{name}")
+            {:halt, false}
+          else
+            Logger.debug("\tno intersects #{name}")
+            {:cont, true}
+          end
+        end)
+      do
+      Logger.debug("\tintersects #{name}")
+      {:cont, true}
+      else
+        Logger.debug("\tno intersects #{name}")
+        {:halt, false}
+    end
+  end
+
+  defp is_line_of_sight_helper(name, points, line, :original) do
+    if intersections(line, points) == [] do
+      Logger.debug("\tno intersects #{name}")
+      {:cont, true}
+    else
+      Logger.debug("\tintersects #{name}")
+      {:halt, false}
     end
   end
 end
