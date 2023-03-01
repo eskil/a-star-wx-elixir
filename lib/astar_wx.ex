@@ -494,7 +494,7 @@ defmodule AstarWx do
   end
 
   def find_nearest_point_helper(points, _holes, line, false) do
-    find_nearest_stop_point(points, line)
+    find_nearest_stop_point(points, line, :by_intersection)
   end
 
   def find_nearest_point_in_holes([], {_start, stop}=_line) do
@@ -513,10 +513,10 @@ defmodule AstarWx do
 
   def find_nearest_point_in_holes_helper([hole|_holes], line, true) do
     {_name, points} = hole
-    find_nearest_stop_point(points, line)
+    find_nearest_stop_point(points, line, :by_intersection)
   end
 
-  def find_nearest_stop_point(points, line) do
+  def find_nearest_stop_point(points, line, :by_intersection) do
     # This finds the nearest _intersection_, but should be nearest point to
     # hole.  Imagine the hole is a box. Actor is to the left of the hole. And
     # you click within the hole, but close to the right side. The correct place

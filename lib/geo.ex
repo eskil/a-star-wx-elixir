@@ -112,10 +112,6 @@ defmodule Geo do
   end
 
   # See https://khorbushko.github.io/article/2021/07/15/the-area-polygon-or-how-to-detect-line-segments-intersection.html for an explanation.
-  #
-  # iex> Geo.intersection({{50, 49}, {50, 100}}, [{10, 10}, {100, 10}, {50, 50}])
-  #  iex> Geo.intersection({{50, 50}, {50, 100}}, [{10, 10}, {100, 10}, {50, 50}])
-  #  iex> Geo.intersection({{50, 51}, {50, 100}}, [{10, 10}, {100, 10}, {50, 50}])
   defp line_segment_intersection({{ax1, ay1}, {ax2, ay2}}=_line1, {{bx1, by1}, {bx2, by2}}=_line2) do
     # Logger.debug("\tintersection #{inspect line1} with #{inspect line2}")
     den = (by2 - by1) * (ax2 - ax1) - (bx2 - bx1) * (ay2 - ay1)
@@ -149,6 +145,46 @@ defmodule Geo do
         # Logger.debug("\t\tnone")
         :none
       end
+    end
+  end
+
+  def distance_to_segment_squared({{vx, vy}=v, {wx, wy}=w}=_line, {px, py}=point) do
+    # var l2:Float = DistanceSquared(vx,vy,wx,wy);
+		# if (l2 == 0) return DistanceSquared(px, py, vx, vy);
+		# var t:Float = ((px - vx) * (wx - vx) + (py - vy) * (wy - vy)) / l2;
+		# if (t < 0) return DistanceSquared(px, py, vx, vy);
+		# if (t > 1) return DistanceSquared(px, py, wx, wy);
+		# return DistanceSquared(px, py, vx + t * (wx - vx), vy + t * (wy - vy));
+    l2 = Vector.distance_squared(v, w)
+    if l2 == 0.0 do
+      Vector.distance_squared(point, v)
+    else
+      t = ((px - vx) * (wx - vx) + (py - vy) * (wy - vy)) / l2
+      cond do
+        t < 0 -> Vector.distance_squared(point, v)
+        t > 1 -> Vector.distance_squared(point, w)
+        true -> Vector.distance_squared(point, {vx + t * (wx - vx), vy + t * (wy - vy)})
+      end
+    end
+  end
+
+  def distance_to_segment(line, point) do
+    :math.sqrt(distance_to_segment_squared(line, point))
+  end
+
+  def closest_point_on_edge(polygon, point) do
+    # Get the closest segment of the polygon
+    {{x1, y1}, {x2, y2}} =
+      polygon
+      |> Enum.chunk_every(2, 1, Enum.slice(polygon, 0, 2))
+      |> Enum.min_by(&(distance_to_segment(&1, point)))
+
+    {x, y}=point
+    u = (((x - x1) * (x2 - x1)) + ((y - y1) * (y2 - y1))) / (((x2 - x1) * (x2 - x1)) + ((y2 - y1) * (y2 - y1)))
+    cond do
+      u < 0 -> {x1, y1}
+      u > 1 -> {x2, y2}
+      true -> {x1 + u * (x2 - x1), y1 + u * (y2 - y1)}
     end
   end
 
