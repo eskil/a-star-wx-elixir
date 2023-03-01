@@ -491,7 +491,7 @@ defmodule AstarWx do
   end
 
   def find_nearest_point_helper(points, _holes, line, false) do
-    find_nearest_stop_point(points, line, :by_nearest)
+    find_nearest_stop_point(points, line)
   end
 
   def find_nearest_point_in_holes([], {_start, stop}=_line) do
@@ -510,32 +510,13 @@ defmodule AstarWx do
 
   def find_nearest_point_in_holes_helper([hole|_holes], line, true) do
     {_name, points} = hole
-    find_nearest_stop_point(points, line, :by_nearest)
+    find_nearest_stop_point(points, line)
   end
 
-  def find_nearest_stop_point(points, line, :by_nearest) do
+  def find_nearest_stop_point(points, line) do
     {_start, stop} = line
     {x, y} = Geo.closest_point_on_edge(points, stop)
     {trunc(x), trunc(y)}
-  end
-
-  def find_nearest_stop_point(points, line, :by_intersection) do
-    # This finds the nearest _intersection_, but should be nearest point to
-    # hole.  Imagine the hole is a box. Actor is to the left of the hole. And
-    # you click within the hole, but close to the right side. The correct place
-    # to walk to is a point on the right side, but the nearest intersection is
-    # on the left.
-    # See https://github.com/MicUurloon/AdventurePathfinding/blob/95550b40490b46b321590aefbdf4d45530b1b0fc/src/pathfinding/Polygon.hx#L82
-    {_start, stop} = line
-    Geo.intersections(line, points)
-    |> Enum.sort(fn ia, ib ->
-      v1 = Vector.sub(stop, ia)
-      v2 = Vector.sub(stop, ib)
-      Vector.distance(stop, v1) < Vector.distance(stop, v2)
-    end)
-    |> Enum.map(&(Vector.truncate(&1)))
-    |> Enum.reverse
-    |> Enum.at(0)
   end
 
   def transform_point([x, y]) do
