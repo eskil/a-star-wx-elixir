@@ -471,7 +471,7 @@ defmodule AstarWx do
   end
 
   def find_nearest_point_helper(points, _holes, line, false) do
-    find_nearest_intersection_point(points, line)
+    find_nearest_stop_point(points, line)
   end
 
   def find_nearest_point_in_holes([], {_start, stop}=_line) do
@@ -481,7 +481,7 @@ defmodule AstarWx do
   def find_nearest_point_in_holes([hole|holes], line) do
     {_name, points} = hole
     {_start, stop} = line
-    find_nearest_point_in_holes_helper([hole|holes], line, Geo.is_inside?(points, stop))
+    find_nearest_point_in_holes_helper([hole|holes], line, Geo.is_inside?(points, stop, allow_border: false))
   end
 
   def find_nearest_point_in_holes_helper([_hole|holes], line, false) do
@@ -490,12 +490,18 @@ defmodule AstarWx do
 
   def find_nearest_point_in_holes_helper([hole|_holes], line, true) do
     {_name, points} = hole
-    find_nearest_intersection_point(points, line)
+    find_nearest_stop_point(points, line)
   end
 
-  def find_nearest_intersection_point(points, line) do
+  def find_nearest_stop_point(points, line) do
+    # This finds the nearest _intersection_, but should be nearest point to
+    # hole.  Imagine the hole is a box. Actor is to the left of the hole. And
+    # you click within the hole, but close to the right side. The correct place
+    # to walk to is a point on the right side, but the nearest intersection is
+    # on the left.
+    # See https://github.com/MicUurloon/AdventurePathfinding/blob/95550b40490b46b321590aefbdf4d45530b1b0fc/src/pathfinding/Polygon.hx#L82
     {_start, stop} = line
-    Geo.intersections(line, points)
+    new_stop = Geo.intersections(line, points)
     |> Enum.sort(fn ia, ib ->
       v1 = Vector.sub(stop, ia)
       v2 = Vector.sub(stop, ib)
@@ -537,7 +543,8 @@ defmodule AstarWx do
 
   def load_scene() do
     path = Application.app_dir(:astarwx)
-    filename = "#{path}/priv/scene2.json"
+    filename = "#{path}/priv/scene21.json"
+    # filename = "#{path}/priv/complex.json"
     Logger.info("Processing #{filename}")
     {:ok, file} = File.read(filename)
     {:ok, json} = Poison.decode(file, keys: :atoms)
