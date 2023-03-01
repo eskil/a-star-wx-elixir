@@ -177,6 +177,7 @@ defmodule Geo do
     {{x1, y1}, {x2, y2}} =
       polygon
       |> Enum.chunk_every(2, 1, Enum.slice(polygon, 0, 2))
+      |> Enum.map(fn [a, b] -> {a, b} end)
       |> Enum.min_by(&(distance_to_segment(&1, point)))
 
     {x, y}=point

@@ -118,11 +118,9 @@ defmodule AstarWx do
                      true, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
                      _wheel_rotation, _wheel_delta, _lines_per_action}} = event, state) do
-    Logger.debug("drag left down #{inspect event, pretty: true}")
     stop = {x, y}
     line = {state.start, stop}
     np = find_nearest_point(state.polygons, line)
-    Logger.info("find_nearest_point = #{inspect np}")
 
     walk_vertices = state.fixed_walk_vertices ++ [state.start, np]
     walk_graph = create_walk_graph(state.polygons, walk_vertices)
@@ -158,7 +156,6 @@ defmodule AstarWx do
     stop = {x, y}
     line = {state.start, stop}
     np = find_nearest_point(state.polygons, line)
-    Logger.info("find_nearest_point = #{inspect np}")
 
     walk_vertices = state.fixed_walk_vertices ++ [state.start, np]
     walk_graph = create_walk_graph(state.polygons, walk_vertices)
@@ -494,7 +491,7 @@ defmodule AstarWx do
   end
 
   def find_nearest_point_helper(points, _holes, line, false) do
-    find_nearest_stop_point(points, line, :by_intersection)
+    find_nearest_stop_point(points, line, :by_nearest)
   end
 
   def find_nearest_point_in_holes([], {_start, stop}=_line) do
@@ -513,7 +510,13 @@ defmodule AstarWx do
 
   def find_nearest_point_in_holes_helper([hole|_holes], line, true) do
     {_name, points} = hole
-    find_nearest_stop_point(points, line, :by_intersection)
+    find_nearest_stop_point(points, line, :by_nearest)
+  end
+
+  def find_nearest_stop_point(points, line, :by_nearest) do
+    {_start, stop} = line
+    {x, y} = Geo.closest_point_on_edge(points, stop)
+    {trunc(x), trunc(y)}
   end
 
   def find_nearest_stop_point(points, line, :by_intersection) do
