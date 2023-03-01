@@ -115,6 +115,29 @@ defmodule AstarWx do
   @impl true
   def handle_event({:wx, _id, _wx_ref, _something,
                     {:wxMouse, :motion, x, y,
+                     true, _middle_down, _right_down,
+                     _control_down, _shift_down, _alt_down, _meta_down,
+                     _wheel_rotation, _wheel_delta, _lines_per_action}} = event, state) do
+    Logger.debug("drag left down #{inspect event, pretty: true}")
+    stop = {x, y}
+    line = {state.start, stop}
+    np = find_nearest_point(state.polygons, line)
+    Logger.info("find_nearest_point = #{inspect np}")
+
+    walk_vertices = state.fixed_walk_vertices ++ [state.start, np]
+    walk_graph = create_walk_graph(state.polygons, walk_vertices)
+    {:noreply, %{
+        state |
+        walk_vertices: walk_vertices,
+        walk_graph: walk_graph,
+        cursor: stop,
+     }
+    }
+  end
+
+  @impl true
+  def handle_event({:wx, _id, _wx_ref, _something,
+                    {:wxMouse, :motion, x, y,
                      _left_down, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
                      _wheel_rotation, _wheel_delta, _lines_per_action}} = event, state) do
@@ -501,7 +524,7 @@ defmodule AstarWx do
     # on the left.
     # See https://github.com/MicUurloon/AdventurePathfinding/blob/95550b40490b46b321590aefbdf4d45530b1b0fc/src/pathfinding/Polygon.hx#L82
     {_start, stop} = line
-    new_stop = Geo.intersections(line, points)
+    Geo.intersections(line, points)
     |> Enum.sort(fn ia, ib ->
       v1 = Vector.sub(stop, ia)
       v2 = Vector.sub(stop, ib)
