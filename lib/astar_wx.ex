@@ -52,6 +52,8 @@ defmodule AstarWx do
       create_walk_graph(polygons, walk_vertices)
       |> reduce_walk_graph
 
+    Logger.info("walk graphs = #{inspect walk_graph, pretty: true}")
+
     state = %{
       wx_frame: frame,
       wx_panel: panel,
@@ -80,14 +82,14 @@ defmodule AstarWx do
   ##
 
   @impl true
-  def handle_event({:wx, _, _, _, {:wxSize, :size, size, _}} = event, state) do
+  def handle_event({:wx, _, _, _, {:wxSize, :size, size, _}}=event, state) do
     Logger.info("received size event: #{inspect(event)}")
     :wxPanel.setSize(state.wx_panel, size)
     {:noreply, state}
   end
 
   @impl true
-  def handle_event({:wx, _, _, _, {:wxClose, :close_window}} = event, state) do
+  def handle_event({:wx, _, _, _, {:wxClose, :close_window}}=event, state) do
     Logger.info("received close event: #{inspect(event)}")
     {:stop, :normal, state}
   end
@@ -98,7 +100,7 @@ defmodule AstarWx do
                      x, y,
                      _left_down, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
-                     _wheel_rotation, _wheel_delta, _lines_per_action}} = _event, state) do
+                     _wheel_rotation, _wheel_delta, _lines_per_action}}=_event, state) do
     {:noreply, %{state | cursor: {x, y}}}
   end
 
@@ -108,7 +110,7 @@ defmodule AstarWx do
                      _x, _y,
                      _left_down, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
-                     _wheel_rotation, _wheel_delta, _lines_per_action}} = _event, state) do
+                     _wheel_rotation, _wheel_delta, _lines_per_action}}=_event, state) do
     {:noreply, %{state | cursor: nil}}
   end
 
@@ -117,7 +119,7 @@ defmodule AstarWx do
                     {:wxMouse, :motion, x, y,
                      true, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
-                     _wheel_rotation, _wheel_delta, _lines_per_action}} = event, state) do
+                     _wheel_rotation, _wheel_delta, _lines_per_action}}=_event, state) do
     stop = {x, y}
     line = {state.start, stop}
     np = find_nearest_point(state.polygons, line)
@@ -139,7 +141,6 @@ defmodule AstarWx do
                      _left_down, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
                      _wheel_rotation, _wheel_delta, _lines_per_action}} = event, state) do
-    Logger.debug("mouse event #{inspect event, pretty: true}")
     {:noreply, %{state | cursor: {x, y}}}
   end
 
@@ -149,7 +150,7 @@ defmodule AstarWx do
                      x, y,
                      left_down, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
-                     _wheel_rotation, _wheel_delta, _lines_per_action}} = _event,
+                     _wheel_rotation, _wheel_delta, _lines_per_action}}=_event,
     state
   ) do
     Logger.info("click #{inspect {x, y}} #{left_down}")
@@ -168,7 +169,7 @@ defmodule AstarWx do
                      x, y,
                      left_up, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
-                     _wheel_rotation, _wheel_delta, _lines_per_action}} = _event,
+                     _wheel_rotation, _wheel_delta, _lines_per_action}}=_event,
     state
   ) do
     Logger.info("click #{inspect {x, y}} #{left_up}")
