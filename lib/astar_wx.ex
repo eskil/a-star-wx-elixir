@@ -30,6 +30,7 @@ defmodule AstarWx do
     # https://www.erlang.org/doc/man/wxmouseevent#type-wxMouseEventType
     :wxPanel.connect(panel, :paint, [:callback])
     :wxPanel.connect(panel, :left_up)
+    :wxPanel.connect(panel, :left_down)
     :wxFrame.connect(panel, :motion)
     :wxPanel.connect(panel, :enter_window)
     :wxPanel.connect(panel, :leave_window)
@@ -46,10 +47,10 @@ defmodule AstarWx do
     {start, polygons} = load_scene()
 
     Logger.info("\n\n\n")
-    vertices = get_walk_vertices(polygons)
-    graph = create_walk_graph(polygons, vertices)
-    walkgraph = reduce_walk_graph(graph)
-    Logger.info("r = #{inspect walkgraph}")
+    walk_vertices = get_walk_vertices(polygons)
+    walk_graph =
+      create_walk_graph(polygons, walk_vertices)
+      |> reduce_walk_graph
 
     state = %{
       wx_frame: frame,
@@ -65,7 +66,11 @@ defmodule AstarWx do
       polygons: polygons,
       cursor: nil,
 
-      walkgraph: walkgraph,
+      fixed_walk_vertices: walk_vertices,
+      debug_walk_graph: walk_graph,
+
+      walk_vertices: nil,
+      walk_graph: nil,
     }
     {frame, state}
   end
@@ -119,7 +124,7 @@ defmodule AstarWx do
 
   @impl true
   def handle_event({:wx, _id, _wx_ref, _something,
-                    {:wxMouse, :left_up,
+                    {:wxMouse, :left_down,
                      x, y,
                      left_down, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
@@ -127,7 +132,29 @@ defmodule AstarWx do
     state
   ) do
     Logger.info("click #{inspect {x, y}} #{left_down}")
-    {:noreply, state}
+    stop = {x, y}
+    line = {state.start, stop}
+    {_main, holes} = Enum.split_with(state.polygons, fn {name, _} -> name == :main end)
+    np = find_nearest_point(holes, line)
+    Logger.info("find_nearest_point = #{inspect np}")
+
+    walk_vertices = state.fixed_walk_vertices ++ [state.start, np]
+    walk_graph = create_walk_graph(state.polygons, walk_vertices)
+    {:noreply, %{state | walk_vertices: walk_vertices, walk_graph: walk_graph}}
+  end
+
+  @impl true
+  def handle_event({:wx, _id, _wx_ref, _something,
+                    {:wxMouse, :left_up,
+                     x, y,
+                     left_up, _middle_down, _right_down,
+                     _control_down, _shift_down, _alt_down, _meta_down,
+                     _wheel_rotation, _wheel_delta, _lines_per_action}} = _event,
+    state
+  ) do
+    Logger.info("click #{inspect {x, y}} #{left_up}")
+    # Reset fields so we only show the debug graph
+    {:noreply, %{state | walk_vertices: nil, walk_graph: nil}}
   end
 
   @impl true
@@ -146,9 +173,11 @@ defmodule AstarWx do
     WxUtils.wx_cls(dc)
 
     light_red = {255, 0, 0, 128}
+    bright_red = {255, 87, 51, 192}
     green = {0, 255, 0}
 
     light_red_pen = :wxPen.new(light_red, [{:width,  1}, {:style, Wx.wxSOLID}])
+    bright_red_pen = :wxPen.new(bright_red, [{:width,  1}, {:style, Wx.wxSOLID}])
 
     brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxTRANSPARENT}])
 
@@ -161,9 +190,16 @@ defmodule AstarWx do
       draw_cursor(dc, state.cursor, state.polygons)
     end
 
-    :wxDC.setPen(dc, light_red_pen)
-    for {{a, b}, _} <- state.walkgraph do
-      :ok = :wxDC.drawLine(dc, a, b)
+    if state.walk_graph do
+      :wxDC.setPen(dc, bright_red_pen)
+      for {{a, b}, _} <- state.walk_graph do
+        :ok = :wxDC.drawLine(dc, a, b)
+      end
+    else
+      :wxDC.setPen(dc, light_red_pen)
+      for {{a, b}, _} <- state.debug_walk_graph do
+        :ok = :wxDC.drawLine(dc, a, b)
+      end
     end
 
     # Draw
@@ -173,6 +209,7 @@ defmodule AstarWx do
     # Cleanup :-/
     :wxPaintDC.destroy(paint_dc)
     :wxPen.destroy(light_red_pen)
+    :wxPen.destroy(bright_red_pen)
     :wxBrush.destroy(brush)
 
     :ok
@@ -346,10 +383,10 @@ defmodule AstarWx do
       Geo.intersections(line, points)
     end
     |> List.flatten
-    |> Enum.sort(fn b, c ->
-      vb = Vector.sub(a, b)
-      vc = Vector.sub(a, c)
-      Vector.distance(a, vb) < Vector.distance(a, vc)
+    |> Enum.sort(fn ia, ib ->
+      v1 = Vector.sub(a, ia)
+      v2 = Vector.sub(a, ib)
+      Vector.distance(a, v1) < Vector.distance(a, v2)
     end)
     |> Enum.map(&(Vector.truncate(&1)))
 
@@ -371,18 +408,18 @@ defmodule AstarWx do
     # TODO: this is done a lot, commoditise?
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
 
-    {concave, _} = Enum.reduce(mains, {[], []}, fn {name, points}, {acc_concave, acc_convex} ->
+    {concave, _} = Enum.reduce(mains, {[], []}, fn {_name, points}, {acc_concave, acc_convex} ->
       {concave, convex} = Geo.classify_vertices(points)
-      Logger.info("polygon #{name} has concave #{inspect concave}")
+      # Logger.info("polygon #{name} has concave #{inspect concave}")
       {acc_concave ++ concave, acc_convex ++ convex}
     end)
 
-    {_, convex} = Enum.reduce(holes, {[], []}, fn {name, points}, {acc_concave, acc_convex} ->
+    {_, convex} = Enum.reduce(holes, {[], []}, fn {_name, points}, {acc_concave, acc_convex} ->
       {concave, convex} = Geo.classify_vertices(points)
-      Logger.info("polygon #{name} has convex #{inspect convex}")
+      # Logger.info("polygon #{name} has convex #{inspect convex}")
       {acc_concave ++ concave, acc_convex ++ convex}
     end)
-    Logger.info("walk vertices = #{inspect concave++convex}")
+    # Logger.info("walk vertices = #{inspect concave++convex}")
     concave ++ convex
   end
 
@@ -418,6 +455,34 @@ defmodule AstarWx do
       end
     end)
     |> Map.new
+  end
+
+  def find_nearest_point([], {_start, stop}=_line) do
+    stop
+  end
+
+  def find_nearest_point([hole|holes], line) do
+    {_name, points} = hole
+    {_start, stop} = line
+    find_nearest_point_helper([hole|holes], line, Geo.is_inside?(points, stop))
+  end
+
+  def find_nearest_point_helper([_hole|holes], line, false) do
+    find_nearest_point(holes, line)
+  end
+
+  def find_nearest_point_helper([hole|_holes], line, true) do
+    {_name, points} = hole
+    {_start, stop} = line
+    Geo.intersections(line, points)
+    |> Enum.sort(fn ia, ib ->
+      v1 = Vector.sub(stop, ia)
+      v2 = Vector.sub(stop, ib)
+      Vector.distance(stop, v1) < Vector.distance(stop, v2)
+    end)
+    |> Enum.map(&(Vector.truncate(&1)))
+    |> Enum.reverse
+    |> Enum.at(0)
   end
 
   def transform_point([x, y]) do

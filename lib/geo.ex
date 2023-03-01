@@ -58,8 +58,30 @@ defmodule Geo do
 
   """
   # TODO: line/polygon oder is inconsistent
-  def intersection({a, _b} = line, polygon) do
+  def first_intersection({a, _b} = line, polygon) do
     Enum.min_by(intersections(line, polygon), fn ip ->
+      Vector.distance(a, ip)
+    end, fn ->
+      nil
+    end)
+  end
+
+  @doc """
+  Get last intersections of a line with a polygon.
+
+  ## Params
+
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
+
+  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
+
+  Returns a `{x, y}` tuples indicating where the line last intersects, or nil
+  if there's no intersection.
+
+  """
+  # TODO: line/polygon oder is inconsistent
+  def last_intersection({a, _b} = line, polygon) do
+    Enum.max_by(intersections(line, polygon), fn ip ->
       Vector.distance(a, ip)
     end, fn ->
       nil
@@ -94,37 +116,37 @@ defmodule Geo do
   # iex> Geo.intersection({{50, 49}, {50, 100}}, [{10, 10}, {100, 10}, {50, 50}])
   #  iex> Geo.intersection({{50, 50}, {50, 100}}, [{10, 10}, {100, 10}, {50, 50}])
   #  iex> Geo.intersection({{50, 51}, {50, 100}}, [{10, 10}, {100, 10}, {50, 50}])
-  defp line_segment_intersection({{ax1, ay1}, {ax2, ay2}}=line1, {{bx1, by1}, {bx2, by2}}=line2) do
-    Logger.debug("\tintersection #{inspect line1} with #{inspect line2}")
+  defp line_segment_intersection({{ax1, ay1}, {ax2, ay2}}=_line1, {{bx1, by1}, {bx2, by2}}=_line2) do
+    # Logger.debug("\tintersection #{inspect line1} with #{inspect line2}")
     den = (by2 - by1) * (ax2 - ax1) - (bx2 - bx1) * (ay2 - ay1)
 
     if den == 0 do
       if (by1 - ay1) * (ax2 - ax1) == (bx1 - ax1) * (ay2 - ay1) do
-        Logger.debug("\t\ton onsegment")
+        # Logger.debug("\t\ton onsegment")
         :on_segment
       else
-        Logger.debug("\t\tparallel")
+        # Logger.debug("\t\tparallel")
         :parallel
       end
     else
       ua = ((bx2 - bx1) * (ay1 - by1) - (by2 - by1) * (ax1 - bx1)) / den
       ub = ((ax2 - ax1) * (ay1 - by1) - (ay2 - ay1) * (ax1 - bx1)) / den
-      Logger.debug("\t\tua #{ua}")
-      Logger.debug("\t\tub #{ub}")
+      # Logger.debug("\t\tua #{ua}")
+      # Logger.debug("\t\tub #{ub}")
       # The "and not (ua == 0.0 or ub == 0.0)" part ensures no intersection on points
       if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 do
       # if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 and not (ua == 0.0 or ub == 0.0) do
       # if ua > 0.0 and ua < 1.0 and ub > 0.0 and ub < 1.0 and not (ua == 0.0 or ub == 0.0) do
         {x, y} = {ax1 + ua * (ax2 - ax1), ay1 + ua * (ay2 - ay1)}
         if ua == 0.0 or ub == 1.0 or ua == 1.0 or ub == 0.0 do
-          Logger.debug("\t\tpoint intersection at #{inspect {x, y}}")
+          # Logger.debug("\t\tpoint intersection at #{inspect {x, y}}")
           {:point_intersection, {x, y}}
         else
-          Logger.debug("\t\tintersection at #{inspect {x, y}}")
+          # Logger.debug("\t\tintersection at #{inspect {x, y}}")
           {:intersection, {x, y}}
         end
       else
-        Logger.debug("\t\tnone")
+        # Logger.debug("\t\tnone")
         :none
       end
     end
@@ -260,15 +282,15 @@ defmodule Geo do
     #   // Not in LOS if any of the ends is outside the polygon
     #   if (!polygon.Inside(start) || !polygon.Inside(end)) return false;
     {start, stop} = line
-    Logger.debug("is_line_of_sight? #{inspect line}")
+    # Logger.debug("is_line_of_sight? #{inspect line}")
     if not is_inside?(polygon, start) or not is_inside?(polygon, stop) do
-      Logger.debug("\toutside #{is_inside?(polygon, start)} #{is_inside?(polygon, stop)}")
+      # Logger.debug("\toutside #{is_inside?(polygon, start)} #{is_inside?(polygon, stop)}")
       false
     else
       #   // In LOS if it's the same start and end location
       #   if (Vector2.Distance(start, end) < epsilon) return true;
       if Vector.distance(start, stop) < 0.5 do
-        Logger.debug("\tnear, yes")
+        # Logger.debug("\tnear, yes")
         true
       else
         #   // Not in LOS if any edge is intersected by the start-end line segment
@@ -284,7 +306,7 @@ defmodule Geo do
             is_line_of_sight_helper(name, points, line, :original)
           end)
         if not rv do
-          Logger.debug("\tno LOS")
+          # Logger.debug("\tno LOS")
           rv
         else
           #   // Finally the middle point in the segment determines if in LOS or not
@@ -300,48 +322,54 @@ defmodule Geo do
               acc
             end
           end)
-          Logger.debug("\t#{acc} by half #{inspect middle}")
+          # Logger.debug("\t#{acc} by half #{inspect middle}")
           acc
         end
       end
     end
   end
 
-  defp is_line_of_sight_helper(name, points, line, :new) do
+  defp is_line_of_sight_helper(_name, points, line, :new) do
     pointsets = Enum.chunk_every(points, 2, 1, Enum.slice(points, 0, 2))
     if Enum.reduce_while(pointsets, false, fn [a, b]=_polygon_segment, _acc ->
           if lines_intersect({a, b}, line) do
-            Logger.debug("\t\t\tintersects #{name}")
+            # Logger.debug("\t\t\tintersects #{name}")
             {:halt, false}
           else
-            Logger.debug("\t\t\tno intersects #{name}")
+            # Logger.debug("\t\t\tno intersects #{name}")
             {:cont, true}
           end
         end)
       do
-      Logger.debug("\t\t\tintersects #{name}")
+      # Logger.debug("\t\t\tintersects #{name}")
       {:cont, true}
       else
-        Logger.debug("\t\t\tno intersects #{name}")
+        # Logger.debug("\t\t\tno intersects #{name}")
         {:halt, false}
     end
   end
 
-  defp is_line_of_sight_helper(name, points, {x, y}=line, :original) do
-    # TODO: line/polygon oder is inconsistent
+  defp is_line_of_sight_helper(_name, points, {x, y}=line, :original) do
+    # We get all intersections but remove them ones that are identical to the
+    # line. This allows us to enable "allow_points: true", but only see
+    # intersections with other lines and _other_ polygon vertices (points).
+    # This is necessary since we're always calling this with a line between two
+    # polygon vertices. Without this, having "allow_points: true", every such
+    # line would immediately intersect at both ends.  TODO: line/polygon oder
+    # is inconsistent
     is =
       intersections(line, points, allow_points: true)
       |> Enum.map(fn {x, y} -> {trunc(x), trunc(y)} end)
       |> Enum.reject(fn p -> p == x or p == y end)
-    Logger.debug("\t\t\tvs #{name} = #{inspect is}")
+    # Logger.debug("\t\t\tvs #{name} = #{inspect is}")
 
     if is == [] do
-      Logger.debug("\t\t\tno intersects #{name}")
+      # Logger.debug("\t\t\tno intersects #{name}")
       {:cont, true}
     else
       # NOTE: maybe if I apply "is_inside" to intersection points with allow
       # border=false to check?
-      Logger.debug("\t\t\tintersects #{name}")
+      # Logger.debug("\t\t\tintersects #{name}")
       {:halt, false}
     end
   end
