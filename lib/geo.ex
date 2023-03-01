@@ -33,11 +33,12 @@ defmodule Geo do
 
   """
   # TODO: line/polygon oder is inconsistent
-  def intersections(line, polygon) do
+  def intersections(line, polygon, opts \\ []) do
     prev_point = List.last(polygon)
     intersects_helper(line, polygon, prev_point, [])
     |> Enum.filter(fn
       {:intersection, _} -> true
+      {:point_intersection, _} -> if Keyword.get(opts, :allow_points, false) do true else false end
       _ -> false
     end)
     |> Enum.map(fn {_, point} -> point end)
@@ -75,6 +76,7 @@ defmodule Geo do
       :none -> intersects_helper(line, polygon, next_point)
       :on_segment -> :on_segment
       {:intersection, _} = result -> result
+      {:point_intersection, _} = result -> result
     end
   end
 
@@ -110,12 +112,17 @@ defmodule Geo do
       Logger.debug("\t\tua #{ua}")
       Logger.debug("\t\tub #{ub}")
       # The "and not (ua == 0.0 or ub == 0.0)" part ensures no intersection on points
-      # if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 do
+      if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 do
       # if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 and not (ua == 0.0 or ub == 0.0) do
-      if ua > 0.0 and ua < 1.0 and ub > 0.0 and ub < 1.0 and not (ua == 0.0 or ub == 0.0) do
+      # if ua > 0.0 and ua < 1.0 and ub > 0.0 and ub < 1.0 and not (ua == 0.0 or ub == 0.0) do
         {x, y} = {ax1 + ua * (ax2 - ax1), ay1 + ua * (ay2 - ay1)}
-        Logger.debug("\t\thit at #{inspect {x, y}}")
-        {:intersection, {x, y}}
+        if ua == 0.0 or ub == 1.0 or ua == 1.0 or ub == 0.0 do
+          Logger.debug("\t\tpoint intersection at #{inspect {x, y}}")
+          {:point_intersection, {x, y}}
+        else
+          Logger.debug("\t\tintersection at #{inspect {x, y}}")
+          {:intersection, {x, y}}
+        end
       else
         Logger.debug("\t\tnone")
         :none
@@ -277,7 +284,7 @@ defmodule Geo do
             is_line_of_sight_helper(name, points, line, :original)
           end)
         if not rv do
-          Logger.debug("\tno")
+          Logger.debug("\tno LOS")
           rv
         else
           #   // Finally the middle point in the segment determines if in LOS or not
@@ -320,9 +327,15 @@ defmodule Geo do
     end
   end
 
-  defp is_line_of_sight_helper(name, points, line, :original) do
+  defp is_line_of_sight_helper(name, points, {x, y}=line, :original) do
     # TODO: line/polygon oder is inconsistent
-    if intersections(line, points) == [] do
+    is =
+      intersections(line, points, allow_points: true)
+      |> Enum.map(fn {x, y} -> {trunc(x), trunc(y)} end)
+      |> Enum.reject(fn p -> p == x or p == y end)
+    Logger.debug("\t\t\tvs #{name} = #{inspect is}")
+
+    if is == [] do
       Logger.debug("\t\t\tno intersects #{name}")
       {:cont, true}
     else

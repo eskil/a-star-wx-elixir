@@ -265,8 +265,6 @@ defmodule AstarWx do
     else
       WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)
     end
-
-    WxUtils.wx_crosshair(dc, {400, 300}, {255, 0, 0}, size: 12)
   end
 
   def draw_polygons(dc, polygons) do
