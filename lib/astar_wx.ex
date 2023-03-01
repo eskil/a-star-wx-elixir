@@ -134,8 +134,7 @@ defmodule AstarWx do
     Logger.info("click #{inspect {x, y}} #{left_down}")
     stop = {x, y}
     line = {state.start, stop}
-    {_main, holes} = Enum.split_with(state.polygons, fn {name, _} -> name == :main end)
-    np = find_nearest_point(holes, line)
+    np = find_nearest_point(state.polygons, line)
     Logger.info("find_nearest_point = #{inspect np}")
 
     walk_vertices = state.fixed_walk_vertices ++ [state.start, np]
@@ -441,7 +440,6 @@ defmodule AstarWx do
         {a_idx + 1, edges ++ inner_edges}
       end)
 
-    Logger.info("all edges #{inspect all_edges}\n\n\n")
     all_edges
   end
 
@@ -461,18 +459,41 @@ defmodule AstarWx do
     stop
   end
 
-  def find_nearest_point([hole|holes], line) do
+  def find_nearest_point(polygons, line) do
+    {main, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+    [{_name, points}] = main
+    {_start, stop} = line
+    find_nearest_point_helper(points, holes, line, Geo.is_inside?(points, stop))
+  end
+
+  def find_nearest_point_helper(_, holes, line, true) do
+    find_nearest_point_in_holes(holes, line)
+  end
+
+  def find_nearest_point_helper(points, _holes, line, false) do
+    find_nearest_intersection_point(points, line)
+  end
+
+  def find_nearest_point_in_holes([], {_start, stop}=_line) do
+    stop
+  end
+
+  def find_nearest_point_in_holes([hole|holes], line) do
     {_name, points} = hole
     {_start, stop} = line
-    find_nearest_point_helper([hole|holes], line, Geo.is_inside?(points, stop))
+    find_nearest_point_in_holes_helper([hole|holes], line, Geo.is_inside?(points, stop))
   end
 
-  def find_nearest_point_helper([_hole|holes], line, false) do
-    find_nearest_point(holes, line)
+  def find_nearest_point_in_holes_helper([_hole|holes], line, false) do
+    find_nearest_point_in_holes(holes, line)
   end
 
-  def find_nearest_point_helper([hole|_holes], line, true) do
+  def find_nearest_point_in_holes_helper([hole|_holes], line, true) do
     {_name, points} = hole
+    find_nearest_intersection_point(points, line)
+  end
+
+  def find_nearest_intersection_point(points, line) do
     {_start, stop} = line
     Geo.intersections(line, points)
     |> Enum.sort(fn ia, ib ->
