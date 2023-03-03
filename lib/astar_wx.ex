@@ -191,45 +191,21 @@ defmodule AstarWx do
     dc = state.wx_memory_dc
     WxUtils.wx_cls(dc)
 
-    light_red = {255, 0, 0, 128}
-    bright_red = {255, 87, 51, 192}
-    green = {0, 255, 0}
-
-    light_red_pen = :wxPen.new(light_red, [{:width,  1}, {:style, Wx.wxSOLID}])
-    bright_red_pen = :wxPen.new(bright_red, [{:width,  1}, {:style, Wx.wxSOLID}])
-
-    brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxTRANSPARENT}])
-
     draw_polygons(dc, state.polygons)
 
-    WxUtils.wx_crosshair(dc, state.start, green, size: 6)
+    WxUtils.wx_crosshair(dc, state.start, {0, 255, 0}, size: 6)
     if state.cursor do
       line = {state.start, state.cursor}
       draw_a_b_line(dc, line, state.polygons)
       draw_cursor(dc, state.cursor, state.polygons)
     end
 
-    if state.walk_graph do
-      :wxDC.setPen(dc, bright_red_pen)
-      for {{a, b}, _} <- state.walk_graph do
-        :ok = :wxDC.drawLine(dc, a, b)
-      end
-    else
-      :wxDC.setPen(dc, light_red_pen)
-      for {{a, b}, _} <- state.debug_walk_graph do
-        :ok = :wxDC.drawLine(dc, a, b)
-      end
-    end
+    draw_walk_graph(dc, state)
 
     # Draw
     paint_dc = :wxPaintDC.new(state.wx_panel)
     :wxDC.blit(paint_dc, {0, 0}, @size, dc, {0, 0})
-
-    # Cleanup :-/
     :wxPaintDC.destroy(paint_dc)
-    :wxPen.destroy(light_red_pen)
-    :wxPen.destroy(bright_red_pen)
-    :wxBrush.destroy(brush)
 
     :ok
   end
@@ -423,6 +399,28 @@ defmodule AstarWx do
     :wxBrush.destroy(brush)
   end
 
+  def draw_walk_graph(dc, state) do
+    light_red = {255, 0, 0, 128}
+    bright_red = {255, 87, 51, 192}
+    light_red_pen = :wxPen.new(light_red, [{:width,  1}, {:style, Wx.wxSOLID}])
+    bright_red_pen = :wxPen.new(bright_red, [{:width,  1}, {:style, Wx.wxSOLID}])
+
+    if state.walk_graph do
+      :wxDC.setPen(dc, bright_red_pen)
+      for {{a, b}, _} <- state.walk_graph do
+        :ok = :wxDC.drawLine(dc, a, b)
+      end
+    else
+      :wxDC.setPen(dc, light_red_pen)
+      for {{a, b}, _} <- state.debug_walk_graph do
+        :ok = :wxDC.drawLine(dc, a, b)
+      end
+    end
+
+    :wxPen.destroy(light_red_pen)
+    :wxPen.destroy(bright_red_pen)
+  end
+
   def get_walk_vertices(polygons) do
     # TODO: this is done a lot, commoditise? Or ditch the "named" polygon concept.
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
@@ -447,20 +445,20 @@ defmodule AstarWx do
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
 
     {_, all_edges} =
-      Enum.reduce(vertices, {0, []}, fn a, {a_idx, edges} ->
+      Enum.reduce(vertices, {0, []}, fn a, {a_idx, acc1} ->
         {_, inner_edges} =
-          Enum.reduce(vertices, {0, []}, fn b, {b_idx, edges} ->
+          Enum.reduce(vertices, {0, []}, fn b, {b_idx, acc2} ->
             if a_idx != b_idx and Geo.is_line_of_sight?(mains[:main], holes, {a, b}) do
               # TODO: use idx or actual points?
-              {b_idx + 1, edges ++ [{{a, b}, Vector.distance(a, b)}]}
+              {b_idx + 1, acc2 ++ [{{a, b}, Vector.distance(a, b)}]}
             else
-              {b_idx + 1, edges}
+              {b_idx + 1, acc2}
             end
           end)
-        {a_idx + 1, edges ++ inner_edges}
+        {a_idx + 1, acc1 ++ inner_edges}
       end)
 
-    Map.new(all_edges )
+    Map.new(all_edges)
   end
 
   def find_nearest_point([], {_start, stop}=_line) do
