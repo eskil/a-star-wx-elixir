@@ -48,7 +48,33 @@ at each vertice.
 
 ## Graph
 
-The graph is a map from edge (truncated coordinate)
+The graph is a map from `edge` to a list of `{edge, cost}`;
+
+The `cost` is the `Vector.distance` between the two. This allows other
+implementation to use a custom cost.
+
+An `edge` initially was a tuple of coordinates of a walk vertice, `{x,
+y}`. Using indexes into the source (list of walk vertices) seems
+better. If the vertices were more complex things, not just `{x, y}`,
+eg. had hot spot names and associated actions, we'd want to refer back
+to them anyway.
+
+So the input is;
+
+```elixir
+vertices = [{x1, y1}, {x2, y2}, {x3, y3}...]
+```
+And the graph worked on is
+
+```elixir
+%{
+  1 => [
+    {2, 150},
+    {3, 70},
+  ],
+}
+```
+
 
 ## Todo
 

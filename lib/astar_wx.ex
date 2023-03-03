@@ -66,6 +66,7 @@ defmodule AstarWx do
       polygons: polygons,
       cursor: nil,
 
+      # This is the list of fixed vertices (from the map) that we will draw
       fixed_walk_vertices: walk_vertices,
       debug_walk_graph: walk_graph,
 
@@ -200,6 +201,7 @@ defmodule AstarWx do
       draw_cursor(dc, state.cursor, state.polygons)
     end
 
+    draw_walk_vertices(dc, state)
     draw_walk_graph(dc, state)
 
     # Draw
@@ -346,7 +348,7 @@ defmodule AstarWx do
     :wxDC.setPen(dc, blue_pen)
     :wxDC.setBrush(dc, brush)
 
-    for point <- state.walk_vertices do
+    for point <- state.fixed_walk_vertices do
       :wxDC.drawCircle(dc, point, 5)
     end
 
