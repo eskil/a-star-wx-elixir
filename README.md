@@ -39,8 +39,16 @@ The polygon is loaded from a json file, and looks like
 The `main` polygon is the primary walking area - as complex as it
 needs to be. Subsequent polygons are holes within it.
 
-If a polygons ins't closed (last `[x, y]` equals the first), it
-will be closed for you.
+Polygons don't need to be closed (last `[x, y]` equals the first),
+that will be handled internally. The rendered polygons will be closed,
+and datastructures will operate on open/closed as necessary.
 
 The tool will display the polygon as a blue outline with a blue crosshair
 at each vertice.
+
+
+## Todo
+
+- [ ] Align on a single `polygon, point` argument order
+- [ ] The polygon "name" thing needs to be addressed - it def must not be in geo.ex
+- [ ] should walkgraph use indexes or points? Ie. `{{edge_1_idx, edge_2idx}, weight}` or `{{x1, y1}, {x2, y2}, weight}`?

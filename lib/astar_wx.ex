@@ -126,6 +126,7 @@ defmodule AstarWx do
 
     walk_vertices = state.fixed_walk_vertices ++ [state.start, np]
     walk_graph = create_walk_graph(state.polygons, walk_vertices)
+
     {:noreply, %{
         state |
         walk_vertices: walk_vertices,
@@ -140,7 +141,7 @@ defmodule AstarWx do
                     {:wxMouse, :motion, x, y,
                      _left_down, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
-                     _wheel_rotation, _wheel_delta, _lines_per_action}} = event, state) do
+                     _wheel_rotation, _wheel_delta, _lines_per_action}}=_event, state) do
     {:noreply, %{state | cursor: {x, y}}}
   end
 
@@ -425,7 +426,7 @@ defmodule AstarWx do
   end
 
   def get_walk_vertices(polygons) do
-    # TODO: this is done a lot, commoditise?
+    # TODO: this is done a lot, commoditise? Or ditch the "named" polygon concept.
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
 
     {concave, _} = Enum.reduce(mains, {[], []}, fn {_name, points}, {acc_concave, acc_convex} ->
