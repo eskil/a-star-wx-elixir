@@ -68,10 +68,9 @@ defmodule AstarWx do
 
       # This is the list of fixed vertices (from the map) that we will draw
       fixed_walk_vertices: walk_vertices,
-      debug_walk_graph: walk_graph,
+      fixed_walk_graph: walk_graph,
 
-      walk_vertices: nil,
-      walk_graph: nil,
+      click_walk_graph: nil,
     }
     {frame, state}
   end
@@ -128,8 +127,7 @@ defmodule AstarWx do
 
     {:noreply, %{
         state |
-        walk_vertices: walk_vertices,
-        walk_graph: walk_graph,
+        click_walk_graph: walk_graph,
         cursor: stop,
      }
     }
@@ -160,7 +158,7 @@ defmodule AstarWx do
 
     walk_vertices = state.fixed_walk_vertices ++ [state.start, np]
     walk_graph = create_walk_graph(state.polygons, walk_vertices)
-    {:noreply, %{state | walk_vertices: walk_vertices, walk_graph: walk_graph}}
+    {:noreply, %{state | click_walk_graph: walk_graph}}
   end
 
   @impl true
@@ -174,7 +172,7 @@ defmodule AstarWx do
   ) do
     Logger.info("click #{inspect {x, y}} #{left_up}")
     # Reset fields so we only show the debug graph
-    {:noreply, %{state | walk_vertices: nil, walk_graph: nil}}
+    {:noreply, %{state | click_walk_graph: nil}}
   end
 
   @impl true
@@ -405,14 +403,14 @@ defmodule AstarWx do
     light_red_pen = :wxPen.new(light_red, [{:width,  1}, {:style, Wx.wxSOLID}])
     bright_red_pen = :wxPen.new(bright_red, [{:width,  1}, {:style, Wx.wxSOLID}])
 
-    if state.walk_graph do
+    if state.click_walk_graph do
       :wxDC.setPen(dc, bright_red_pen)
-      for {{a, b}, _} <- state.walk_graph do
+      for {{a, b}, _} <- state.click_walk_graph do
         :ok = :wxDC.drawLine(dc, a, b)
       end
     else
       :wxDC.setPen(dc, light_red_pen)
-      for {{a, b}, _} <- state.debug_walk_graph do
+      for {{a, b}, _} <- state.fixed_walk_graph do
         :ok = :wxDC.drawLine(dc, a, b)
       end
     end

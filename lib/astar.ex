@@ -12,7 +12,7 @@ defmodule AstarPathfind do
     ]
   end
 
-  def new(graph, start, stop, heuristic_dist_fun) do
+  def new(graph, start, stop, heur_fun) do
     queue = []
       # graph
       # |> Enum.reduce(%{}, fn {{v1, v2}, _d}, acc ->
