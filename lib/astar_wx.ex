@@ -463,18 +463,6 @@ defmodule AstarWx do
     Map.new(all_edges )
   end
 
-  def reduce_walk_graph(graph) do
-    graph
-    |> Enum.map(fn {{{ax, _ay}=a, {bx, _by}=b}, dist} ->
-      if ax < bx do
-        {{a, b}, dist}
-      else
-        {{b, a}, dist}
-      end
-    end)
-    |> Map.new
-  end
-
   def find_nearest_point([], {_start, stop}=_line) do
     stop
   end
