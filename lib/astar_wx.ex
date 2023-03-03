@@ -48,9 +48,7 @@ defmodule AstarWx do
 
     Logger.info("\n\n\n")
     walk_vertices = get_walk_vertices(polygons)
-    walk_graph =
-      create_walk_graph(polygons, walk_vertices)
-      |> reduce_walk_graph
+    walk_graph = create_walk_graph(polygons, walk_vertices)
 
     Logger.info("walk graphs = #{inspect walk_graph, pretty: true}")
 
@@ -462,7 +460,7 @@ defmodule AstarWx do
         {a_idx + 1, edges ++ inner_edges}
       end)
 
-    all_edges
+    Map.new(all_edges )
   end
 
   def reduce_walk_graph(graph) do
