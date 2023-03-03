@@ -6,7 +6,7 @@
 mix new a-star-wx-elixir --app astarwx --module AstarWx --sup
 ```
 
-## Description
+## Polygon map
 
 A polygon is a list of `{x, y}` tuples that represent screen
 coordinates. In elixir, it looks like
@@ -46,6 +46,9 @@ and datastructures will operate on open/closed as necessary.
 The tool will display the polygon as a blue outline with a blue crosshair
 at each vertice.
 
+## Graph
+
+The graph is a map from edge (truncated coordinate)
 
 ## Todo
 

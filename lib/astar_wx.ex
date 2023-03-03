@@ -306,7 +306,6 @@ defmodule AstarWx do
     blue_pen = :wxPen.new(blue, [{:width,  1}, {:style, Wx.wxSOLID}])
 
     brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxSOLID}])
-    concave_brush = :wxBrush.new(opaque_blue, [{:style, Wx.wxSOLID}])
     opaque_blue_brush = :wxBrush.new(opaque_blue, [{:style, Wx.wxSOLID}])
 
     {main, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
@@ -332,28 +331,27 @@ defmodule AstarWx do
       end
     end
 
-    for {_name, points} <- main do
-      {concave, _} = Geo.classify_vertices(points)
-      for point <- concave do
-        :wxDC.setPen(dc, blue_pen)
-        :wxDC.setBrush(dc, concave_brush)
-        :wxDC.drawCircle(dc, point, 5)
-      end
-    end
+    :wxPen.destroy(blue_pen)
+    :wxBrush.destroy(brush)
+    :wxBrush.destroy(opaque_blue_brush)
+  end
 
-    for {_name, points} <- holes do
-      {_, convex} = Geo.classify_vertices(points)
-      for point <- convex do
-        :wxDC.setPen(dc, blue_pen)
-        :wxDC.setBrush(dc, concave_brush)
-        :wxDC.drawCircle(dc, point, 5)
-      end
+  def draw_walk_vertices(dc, state) do
+    blue = {0, 150, 255}
+    opaque_blue = {0, 150, 255, 64}
+
+    blue_pen = :wxPen.new(blue, [{:width,  1}, {:style, Wx.wxSOLID}])
+    brush = :wxBrush.new(opaque_blue, [{:style, Wx.wxSOLID}])
+
+    :wxDC.setPen(dc, blue_pen)
+    :wxDC.setBrush(dc, brush)
+
+    for point <- state.walk_vertices do
+      :wxDC.drawCircle(dc, point, 5)
     end
 
     :wxPen.destroy(blue_pen)
     :wxBrush.destroy(brush)
-    :wxBrush.destroy(concave_brush)
-    :wxBrush.destroy(opaque_blue_brush)
   end
 
   def draw_a_b_line(dc, {a, b}=line, polygons) do
