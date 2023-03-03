@@ -12,7 +12,7 @@ defmodule AstarPathfind do
     ]
   end
 
-  def new(graph, start, stop, heur_fun) do
+  def new(_graph, start, stop, heur_fun) do
     queue = []
       # graph
       # |> Enum.reduce(%{}, fn {{v1, v2}, _d}, acc ->
@@ -22,7 +22,7 @@ defmodule AstarPathfind do
       # |> Map.to_list
       # |> sort_queue_by_smallest_total_distance
 
-    %{start: start, stop: stop, heuristic_dist_fun: heuristic_dist_fun, queue: queue}
+    %{start: start, stop: stop, heur_fun: heur_fun, queue: queue}
   end
 
   def sort_queue_by_smallest_total_distance(state) do

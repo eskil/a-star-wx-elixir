@@ -48,9 +48,11 @@ defmodule AstarWx do
 
     Logger.info("\n\n\n")
     walk_vertices = get_walk_vertices(polygons)
-    walk_graph = create_walk_graph(polygons, walk_vertices)
+    walk_graph_old = create_walk_graph_old(polygons, walk_vertices)
+    walk_graph_new = create_walk_graph_new(polygons, walk_vertices)
 
-    Logger.info("walk graphs = #{inspect walk_graph, pretty: true}")
+    Logger.info("walk graphs = #{inspect walk_graph_old, pretty: true}")
+    Logger.info("walk graphs = #{inspect walk_graph_new, pretty: true}")
 
     state = %{
       wx_frame: frame,
@@ -68,7 +70,7 @@ defmodule AstarWx do
 
       # This is the list of fixed vertices (from the map) that we will draw
       fixed_walk_vertices: walk_vertices,
-      fixed_walk_graph: walk_graph,
+      fixed_walk_graph: walk_graph_old,
 
       click_walk_graph: nil,
     }
@@ -123,11 +125,11 @@ defmodule AstarWx do
     np = find_nearest_point(state.polygons, line)
 
     walk_vertices = state.fixed_walk_vertices ++ [state.start, np]
-    walk_graph = create_walk_graph(state.polygons, walk_vertices)
+    walk_graph_old = create_walk_graph_old(state.polygons, walk_vertices)
 
     {:noreply, %{
         state |
-        click_walk_graph: walk_graph,
+        click_walk_graph: walk_graph_old,
         cursor: stop,
      }
     }
@@ -157,8 +159,8 @@ defmodule AstarWx do
     np = find_nearest_point(state.polygons, line)
 
     walk_vertices = state.fixed_walk_vertices ++ [state.start, np]
-    walk_graph = create_walk_graph(state.polygons, walk_vertices)
-    {:noreply, %{state | click_walk_graph: walk_graph}}
+    walk_graph_old = create_walk_graph_old(state.polygons, walk_vertices)
+    {:noreply, %{state | click_walk_graph: walk_graph_old}}
   end
 
   @impl true
@@ -438,7 +440,7 @@ defmodule AstarWx do
     concave ++ convex
   end
 
-  def create_walk_graph(polygons, vertices) do
+  def create_walk_graph_old(polygons, vertices) do
     # TODO: this is done a lot, commoditise?
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
 
@@ -456,6 +458,33 @@ defmodule AstarWx do
         {a_idx + 1, acc1 ++ inner_edges}
       end)
 
+    Map.new(all_edges)
+  end
+
+  def create_walk_graph_new(polygons, vertices) do
+    cost_fun = fn a, b -> Vector.distance(a, b) end
+
+    # TODO: this is done a lot, commoditise?
+    {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+    main = mains[:main]
+
+    {_, all_edges} =
+      Enum.reduce(vertices, {0, %{}}, fn a, {a_idx, acc1} ->
+        {_, inner_edges} =
+          Enum.reduce(vertices, {0, []}, fn b, {b_idx, acc2} ->
+            if a_idx != b_idx and Geo.is_line_of_sight?(main, holes, {a, b}) do
+              # TODO: use idx or actual points?
+              {b_idx + 1, acc2 ++ [{b, cost_fun.(a, b)}]}
+            else
+              {b_idx + 1, acc2}
+            end
+          end)
+        Logger.info("inner edges = #{inspect inner_edges, pretty: true}")
+
+        {a_idx + 1, Map.put(acc1, a, inner_edges)}
+      end)
+
+    Logger.info("all edges = #{inspect all_edges, pretty: true}")
     Map.new(all_edges)
   end
 
