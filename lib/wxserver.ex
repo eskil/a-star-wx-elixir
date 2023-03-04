@@ -1,4 +1,5 @@
 defmodule WxServer do
+  @moduledoc false
   use GenServer, restart: :transient
   require Logger
 

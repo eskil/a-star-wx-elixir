@@ -2,18 +2,20 @@ defmodule Vector do
   @moduledoc """
   Functions to work on vectors.
 
-  Vectors are represented as tuples of x and y coordinates, `{x, y}`.
+  Vectors are represented as tuples of x and y coordinates, `{x, y}`. This
+  module provides basic trigonometry functions.
+
   """
 
   @doc"""
-  Get the length a vector.
+  Get the length of a vector.
   """
   def len({x, y}) do
     :math.sqrt(x * x + y * y)
   end
 
   @doc"""
-  Add two vector together.
+  Add two vectors together.
   """
   def add({ax, ay}, {bx, by}) do
     {ax + bx, ay + by}
@@ -28,6 +30,10 @@ defmodule Vector do
 
   @doc"""
   Divide a vector by a constant.
+
+  ## Examples
+    iex> Vector.div({10, 10}, 2)
+    {5.0, 5.0}
   """
   def div({x, y}, c) do
     {x / c, y / c}
@@ -91,6 +97,9 @@ defmodule Vector do
     :math.sqrt(:math.pow(x, 2) + :math.pow(y, 2))
   end
 
+  @doc """
+  Get the angle of a vector.
+  """
   def angle({0.0, y}) when y < 0 do
     - :math.pi / 2
   end
@@ -112,14 +121,14 @@ defmodule Vector do
   end
 
   @doc"""
-  Calls trunc on a vector to make the vector work with wx.
+  Calls trunc on a vector to make the vector work with wx (requires integers).
   """
   def trunc_pos({x, y}) do
     {trunc(x), trunc(y)}
   end
 
   @doc"""
-  Calls round on a vector to make the vector work with wx.
+  Calls round on a vector to make the vector work with wx (requires integers).
   """
   def round_pos({x, y}) do
     {round(x), round(y)}
@@ -131,21 +140,21 @@ defmodule Vector do
   ## Examples
       iex> alias Vector, as: Vector
       Vector
-      iex> Vector.degrees_a({1, 1)}
+      iex> Vector.degrees_a({1, 1})
       45.0
-      iex> Vector.degrees_a({0, 1)}
+      iex> Vector.degrees_a({0, 1})
       90.0
-      iex> Vector.degrees_a({1, 0)}
+      iex> Vector.degrees_a({1, 0})
       -0.0
-      iex> Vector.degrees_a({-1, 1)}
+      iex> Vector.degrees_a({-1, 1})
       135.0
-      iex> Vector.degrees_a({-1, 0)}
+      iex> Vector.degrees_a({-1, 0})
       180.0
-      iex> Vector.degrees_a({-1, -1)}
+      iex> Vector.degrees_a({-1, -1})
       225.0
-      iex> Vector.degrees_a({0, -1)}
+      iex> Vector.degrees_a({0, -1})
       270.0
-      iex> Vector.degrees_a({1, -1)}
+      iex> Vector.degrees_a({1, -1})
       315.0
   """
   def degrees_a({x, y}=v) do
@@ -167,28 +176,28 @@ defmodule Vector do
   Vectors are in x,y screen coordinate, so 1,1 = 135D down to right
 
   ## Examples
-      iex> Vector.degrees({0, -1)}
+      iex> Vector.degrees({0, -1})
       0
-      iex> Vector.degrees({1, -1)}
+      iex> Vector.degrees({1, -1})
       45
-      iex> Vector.degrees({1, 0)}
+      iex> Vector.degrees({1, 0})
       90
-      iex> Vector.degrees({1, 1)}
+      iex> Vector.degrees({1, 1})
       135
-      iex> Vector.degrees({0, 1)}
+      iex> Vector.degrees({0, 1})
       180
-      iex> Vector.degrees({-1, 1)}
+      iex> Vector.degrees({-1, 1})
       225
-      iex> Vector.degrees({-1, 0)}
+      iex> Vector.degrees({-1, 0})
       270
-      iex> Vector.degrees({-1, -1)}
+      iex> Vector.degrees({-1, -1})
       315
   """
-  def degrees({x, y}=v) do
+  def degrees({x, _y}=v) do
     # z is our "north" and it's pointing "right" to rotate.
     z = {0, -1}
     d = dot(v, z)
-    cos_a = d / (mag(v) * mag(y))
+    cos_a = d / (mag(v) * mag(z))
     d = :math.acos(cos_a) * (180 / :math.pi)
     if x < 0 do
       360 - d

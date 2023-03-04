@@ -5,6 +5,8 @@ defmodule Wx do
   @last_revision_date "22 May 2019"
   @moduledoc """
   Elixir version of the constants found in the wx.hrl file
+
+  From https://gist.github.com/dominicletz/5da3637275d81a421bc6aa72ae5c31c7
   """
   import Bitwise
   require Record

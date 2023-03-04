@@ -1,4 +1,19 @@
 defmodule Geo do
+  @moduledoc """
+  Functions related to polygons and lines relevant for 2D map pathfinding. This
+  provides functions for;
+
+  * line of sight between two points
+
+  * classify polygon vertices as concave or vertex
+
+  * intersections of lines and polygons
+
+  * checking if points are inside/outside polygons
+
+  * finding nearest point on a polygon and distances
+
+  """
   require Logger
 
   # TODO: line/polygon oder is inconsistent
@@ -6,14 +21,16 @@ defmodule Geo do
   @doc """
   Checks if a line intersects a polygon.
 
+  This is a bare-minimum function, and for most cases using `intersections`
+  will be necessary.
+
   ## Params
 
   * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
 
   * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
 
-  Returns `true` or `false`.
-
+  Returns `true` or `false` wether the line intersects the polygon or not.
   """
   def intersects?(line, polygon) do
     prev_point = List.last(polygon)
@@ -21,13 +38,21 @@ defmodule Geo do
   end
 
   @doc """
-  Get intersections of a line with a polygon.
+  Get all intersections of a line with a polygon including their type.
 
   ## Params
 
   * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
 
   * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
+
+  * `opts` options
+
+    * `:allow_points` (default `false`) wether a `on_point` intersection should
+      be considered an intersection or not. This varies from use
+      cases. Eg. when building a polygon, points will be connected and thus
+      intersect if seet `true`. This may not be the desired result, so `false`
+      won't consider points intersections.
 
   Returns a list of `{x, y}` tuples indicating where the line intersects, or
   `[]` if there's no intersections.
@@ -50,15 +75,15 @@ defmodule Geo do
 
   ## Params
 
-  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line. The
+    first tuple (`{ax, ay}`) is considered the head of the line and "first" in
+    this context means nearest to that point.
 
   * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
 
-  Returns a `{x, y}` tuples indicating where the line first intersects, or nil
+  Returns a `{x, y}` tuples indicating where the line first intersects, or `nil`
   if there's no intersection.
-
   """
-  # TODO: line/polygon oder is inconsistent
   def first_intersection({a, _b} = line, polygon) do
     Enum.min_by(intersections(line, polygon), fn ip ->
       Vector.distance(a, ip)
@@ -72,15 +97,15 @@ defmodule Geo do
 
   ## Params
 
-  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line. The
+     second tuple (`{bx, by}`) is considered the end of the line and "last" in
+     this context means nearest to that point.
 
   * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
 
   Returns a `{x, y}` tuples indicating where the line last intersects, or nil
   if there's no intersection.
-
   """
-  # TODO: line/polygon oder is inconsistent
   def last_intersection({a, _b} = line, polygon) do
     Enum.max_by(intersections(line, polygon), fn ip ->
       Vector.distance(a, ip)
@@ -112,12 +137,15 @@ defmodule Geo do
     intersects_helper(line, polygon, next_point, acc ++ [v])
   end
 
-  # See https://khorbushko.github.io/article/2021/07/15/the-area-polygon-or-how-to-detect-line-segments-intersection.html for an explanation.
+  # For explanation of a lot of the math here;
+  # * https://khorbushko.github.io/article/2021/07/15/the-area-polygon-or-how-to-detect-line-segments-intersection.html
+  # * https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/1968345#1968345
   @doc """
-  Determine if `line1` and `line2` intersects.
+  Determine if, where and how two lines intersect.
 
   ## Params
   * `line1` a `{{x1, y1}, {x2, y2}}` line segment
+
   * `line2` a `{{x3, y13, {x4, y4}}` line segment
 
   Returns
@@ -130,9 +158,9 @@ defmodule Geo do
     on the other line
 
   * `{:intersection, {x, y}}` if either line has an endpoint (`{x, y}`) on the
-  other line.
+    other line.
 
-
+  * `:none` no intersection.
   """
   def line_segment_intersection(line1, line2) do
     # Logger.debug("\tintersection #{inspect line1} with #{inspect line2}")
