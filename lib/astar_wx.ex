@@ -120,6 +120,10 @@ defmodule AstarWx do
                      _control_down, _shift_down, _alt_down, _meta_down,
                      _wheel_rotation, _wheel_delta, _lines_per_action}}=_event, state) do
     stop = {x, y}
+    # stop = {87, 352}
+    # stop = {90, 349}
+    # stop = {91, 350}
+    stop = {62, 310}
     line = {state.start, stop}
     np = find_nearest_point(state.polygons, line)
 
@@ -128,11 +132,7 @@ defmodule AstarWx do
 
     astar_state = AstarPathfind.new(walk_graph, state.start, np, fn a, b -> Vector.distance(a, b) end)
     astar_state = AstarPathfind.search(astar_state)
-    Logger.info("astar spt = #{inspect astar_state.shortest_path_tree, pretty: true}")
-    Logger.info("astar start stop = #{inspect astar_state.start, pretty: true} #{inspect astar_state.stop, pretty: true}")
-    Logger.info("astar np = #{inspect np, pretty: true}")
     path = AstarPathfind.get_path(astar_state, np)
-    Logger.info("pat = #{inspect path, pretty: true}")
 
     {:noreply, %{
         state |
@@ -163,6 +163,10 @@ defmodule AstarWx do
   ) do
     Logger.info("click #{inspect {x, y}} #{left_down}")
     stop = {x, y}
+    # stop = {87, 352}
+    # stop = {90, 349}
+    # stop = {91, 350}
+    stop = {62, 310}
     line = {state.start, stop}
     np = find_nearest_point(state.polygons, line)
 
@@ -171,11 +175,7 @@ defmodule AstarWx do
 
     astar_state = AstarPathfind.new(walk_graph, state.start, np, fn a, b -> Vector.distance(a, b) end)
     astar_state = AstarPathfind.search(astar_state)
-    Logger.info("astar spt = #{inspect astar_state.shortest_path_tree, pretty: true}")
-    Logger.info("astar start stop = #{inspect astar_state.start, pretty: true} #{inspect astar_state.stop, pretty: true}")
-    Logger.info("astar np = #{inspect np, pretty: true}")
     path = AstarPathfind.get_path(astar_state, np)
-    Logger.info("pat = #{inspect path, pretty: true}")
 
     {:noreply, %{state | click_walk_graph: walk_graph, path: path}}
   end
@@ -401,7 +401,7 @@ defmodule AstarWx do
       v2 = Vector.sub(a, ib)
       Vector.distance(a, v1) < Vector.distance(a, v2)
     end)
-    |> Enum.map(&(Vector.truncate(&1)))
+    |> Enum.map(&(Vector.trunc_pos(&1)))
 
     for p <- intersections do
       WxUtils.wx_crosshair(dc, p, light_gray, size: 3)
@@ -444,7 +444,7 @@ defmodule AstarWx do
   end
 
   def draw_walk_path(dc, state) do
-    bright_green_pen = :wxPen.new({64, 255, 64}, [{:width,  3}, {:style, Wx.wxSOLID}])
+    bright_green_pen = :wxPen.new({64, 255, 64}, [{:width,  2}, {:style, Wx.wxSOLID}])
     :wxDC.setPen(dc, bright_green_pen)
 
     pointsets = Enum.chunk_every(state.path, 2, 1)
@@ -496,6 +496,11 @@ defmodule AstarWx do
       Enum.reduce(vertices, {0, %{}}, fn a, {a_idx, acc1} ->
         {_, inner_edges} =
           Enum.reduce(vertices, {0, []}, fn b, {b_idx, acc2} ->
+            if a == {87, 352} or b == {87, 352} do
+              Logger.info("Checking a = #{inspect a} b = #{inspect b}")
+              Logger.info("a_idx = #{a_idx} b_idx = #{b_idx}")
+              Logger.info("is_reachable?.(a, b) = #{is_reachable?.(a, b)}")
+            end
             if a_idx != b_idx and is_reachable?.(a, b) do
               # TODO: use idx or actual points?
               {b_idx + 1, acc2 ++ [{b, cost_fun.(a, b)}]}
@@ -565,12 +570,27 @@ defmodule AstarWx do
   def find_nearest_stop_point(points, line) do
     {_start, stop} = line
     {x, y} = Geo.closest_point_on_edge(points, stop)
-    {trunc(x), trunc(y)}
+    # TODO: this is problematic area - we want to round towards the start of
+    # the line Eg. in complex.json scene, clicking {62, 310} yields {64.4,
+    # 308.8}, which naive rounding makes {64, 309}. This however places us
+    # *inside* the hole.
+
+    # Some options are; try all four combos or floor/ceil and see which yields
+    # the minimal distance - wrong, since the start might be on the far side of
+    # a hole.
+
+    # Shorten towards start? Same thing.
+
+    # Actually a-star compute all four rounding and pick the shortest path -
+    # that's a bit cpu heavy.
+
+    # Compute all four rounding and pick one that's *not* inside the hole.
+    {round(x), round(y)}
   end
 
   # Transform a json `[x, y]` list to a `{x, y}` tuple and ensure it's a integer (trunc)
   defp transform_point([x, y]) do
-    {trunc(x), trunc(y)}
+    {round(x), round(y)}
   end
 
   # Transform a json polygon, `name, [[x, y], [x, y]...]` list to a `{name, [{x, y}, ...]}`.

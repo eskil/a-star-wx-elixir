@@ -114,8 +114,15 @@ defmodule Vector do
   @doc"""
   Calls trunc on a vector to make the vector work with wx.
   """
-  def truncate({x, y}) do
+  def trunc_pos({x, y}) do
     {trunc(x), trunc(y)}
+  end
+
+  @doc"""
+  Calls round on a vector to make the vector work with wx.
+  """
+  def round_pos({x, y}) do
+    {round(x), round(y)}
   end
 
   @doc """
@@ -188,6 +195,6 @@ defmodule Vector do
     else
       d
     end
-    |> trunc
+    |> round
   end
 end

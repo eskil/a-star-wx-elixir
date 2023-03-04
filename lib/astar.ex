@@ -2,6 +2,8 @@ defmodule AstarPathfind do
   require Logger
 
   def new(graph, start, stop, heur_fun) do
+    # Logger.info("\n\n\n-----------------------------------------\nASTAR")
+    # Logger.info("graph = #{inspect graph, pretty: true}")
     queue = [start]
 
     %{
@@ -42,48 +44,58 @@ defmodule AstarPathfind do
 
   def search_helper(%{queue: [current|queue]}=state) do
     # Logger.info("\n\n\n-----------------------------------------\nSEARCH")
-    # Logger.info("state = #{inspect state, pretty: true}")
     # Logger.info("current = #{inspect current, pretty: true}")
+    # Logger.info("state = #{inspect Map.delete(state, :graph), pretty: true}")
 
     spt = Map.put(state.shortest_path_tree, current, Map.get(state.frontier, current))
 
-    if current == state.stop do
-      # Logger.info("stop, spt = #{inspect spt, pretty: true}")
-      %{state | shortest_path_tree: spt}
-    else
-      edges = Map.get(state.graph, current, [])
+    cond do
+      current == state.stop ->
+        # Logger.info("stop, spt = #{inspect spt, pretty: true}")
+        %{state | shortest_path_tree: spt}
+      true ->
+        edges = Map.get(state.graph, current, [])
 
-      # Logger.info("edges = #{inspect edges, pretty: true}")
+        # Logger.info("edges = #{inspect edges, pretty: true}")
 
-      seed = {state.frontier, queue, state.g_cost, state.f_cost}
-      {f, q, g_cost, f_cost} = Enum.reduce(edges, seed, fn {node, edge_cost}, acc ->
-        {frontier, queue, g_cost, f_cost} = acc
-        # H cost
-        heur_cost = state.heur_fun.(node, state.stop)
-        # G cost
-        shortest_distance_from_start = Map.get(g_cost, current, 0) + edge_cost
-        # F cost = G cost + H cost
-        total_distance = shortest_distance_from_start + heur_cost
+        reduce_seed = {state.frontier, queue, state.g_cost, state.f_cost}
 
-        cond do
-          not Map.has_key?(frontier, node) ->
-            {
-              Map.put(frontier, node, current),
-              add_to_queue(queue, node),
-              Map.put(g_cost, node, shortest_distance_from_start),
-              Map.put(f_cost, node, total_distance),
-            }
-          shortest_distance_from_start < Map.get(g_cost, current, 0) and Map.get(spt, node) == nil ->
-            {
-              Map.put(frontier, node, current),
-              queue,
-              Map.put(g_cost, node, shortest_distance_from_start),
-              Map.put(f_cost, node, total_distance),
-            }
-          true ->
-            {frontier, queue, g_cost, f_cost}
-        end
-      end)
+        {f, q, g_cost, f_cost} =
+          Enum.reduce(edges, reduce_seed, fn {node, edge_cost}, acc ->
+            {frontier, queue, g_cost, f_cost} = acc
+            # H cost
+            heur_cost = state.heur_fun.(node, state.stop)
+            # G cost
+            shortest_distance_from_start = Map.get(g_cost, current, 0) + edge_cost
+            # F cost = G cost + H cost
+            total_distance = shortest_distance_from_start + heur_cost
+            # Logger.info("\t#{inspect node} heur_cost = #{heur_cost}")
+            # Logger.info("\t#{inspect node} new g_cost = #{shortest_distance_from_start}")
+            # Logger.info("\t#{inspect node} new cost = #{total_distance}\n")
+
+            cond do
+              node == state.start ->
+                # No reason to go back
+                # Logger.info("skip going back to start")
+                acc
+              not Map.has_key?(frontier, node) ->
+                {
+                  Map.put(frontier, node, current),
+                  add_to_queue(queue, node),
+                  Map.put(g_cost, node, shortest_distance_from_start),
+                  Map.put(f_cost, node, total_distance),
+                }
+              shortest_distance_from_start < Map.get(g_cost, current, 0) and Map.get(spt, node) == nil ->
+                {
+                  Map.put(frontier, node, current),
+                  queue,
+                  Map.put(g_cost, node, shortest_distance_from_start),
+                  Map.put(f_cost, node, total_distance),
+                }
+              true ->
+                {frontier, queue, g_cost, f_cost}
+            end
+          end)
 
       new_state = %{
         state |
@@ -92,7 +104,8 @@ defmodule AstarPathfind do
         f_cost: f_cost,
         g_cost: g_cost,
         shortest_path_tree: spt,
-      }
+        }
+
       search_helper(new_state)
     end
   end

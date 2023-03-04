@@ -182,11 +182,15 @@ defmodule Geo do
 
     {x, y}=point
     u = (((x - x1) * (x2 - x1)) + ((y - y1) * (y2 - y1))) / (((x2 - x1) * (x2 - x1)) + ((y2 - y1) * (y2 - y1)))
-    cond do
+    {nx, ny} = cond do
       u < 0 -> {x1, y1}
       u > 1 -> {x2, y2}
       true -> {x1 + u * (x2 - x1), y1 + u * (y2 - y1)}
     end
+    Logger.info("segment = #{inspect {{x1, y1}, {x2, y2}}}")
+    Logger.info("point = #{inspect point}")
+    Logger.info("result = #{inspect {nx, ny}}")
+    {nx, ny}
   end
 
   # ported from http://www.david-gouveia.com/portfolio/pathfinding-on-a-2d-polygonal-map/
@@ -396,7 +400,7 @@ defmodule Geo do
     # is inconsistent
     is =
       intersections(line, points, allow_points: true)
-      |> Enum.map(fn {x, y} -> {trunc(x), trunc(y)} end)
+      |> Enum.map(fn {x, y} -> {round(x), round(y)} end)
       |> Enum.reject(fn p -> p == x or p == y end)
     # Logger.debug("\t\t\tvs #{name} = #{inspect is}")
 
