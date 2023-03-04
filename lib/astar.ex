@@ -52,7 +52,6 @@ defmodule AstarPathfind do
       %{state | shortest_path_tree: spt}
     else
       edges = Map.get(state.graph, current, [])
-      # |> Enum.reject(fn {node, _edge_cost} -> Map.has_key?(state.visited, node.node) end)
 
       # Logger.info("edges = #{inspect edges, pretty: true}")
 
@@ -77,7 +76,7 @@ defmodule AstarPathfind do
           shortest_distance_from_start < Map.get(g_cost, current, 0) and Map.get(spt, node) == nil ->
             {
               Map.put(frontier, node, current),
-              add_to_queue(queue, node),
+              queue,
               Map.put(g_cost, node, shortest_distance_from_start),
               Map.put(f_cost, node, total_distance),
             }
@@ -100,16 +99,19 @@ defmodule AstarPathfind do
 
   def get_path(state, stop) do
     next = state.shortest_path_tree[stop]
+    Logger.info("start")
     get_path(state, next, [stop])
     |> Enum.reverse
   end
 
   def get_path(_state, nil, acc) do
+    Logger.info("fin")
     acc
   end
 
   def get_path(state, node, acc) do
     next = state.shortest_path_tree[node]
+    Logger.info("skip #{inspect next} #{inspect node}")
     get_path(state, next, acc ++ [node])
   end
 end

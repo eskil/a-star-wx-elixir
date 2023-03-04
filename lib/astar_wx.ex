@@ -128,7 +128,9 @@ defmodule AstarWx do
 
     astar_state = AstarPathfind.new(walk_graph, state.start, np, fn a, b -> Vector.distance(a, b) end)
     astar_state = AstarPathfind.search(astar_state)
-    Logger.info("astar_state = #{inspect astar_state, pretty: true}")
+    Logger.info("astar spt = #{inspect astar_state.shortest_path_tree, pretty: true}")
+    Logger.info("astar start stop = #{inspect astar_state.start, pretty: true} #{inspect astar_state.stop, pretty: true}")
+    Logger.info("astar np = #{inspect np, pretty: true}")
     path = AstarPathfind.get_path(astar_state, np)
     Logger.info("pat = #{inspect path, pretty: true}")
 
@@ -169,7 +171,9 @@ defmodule AstarWx do
 
     astar_state = AstarPathfind.new(walk_graph, state.start, np, fn a, b -> Vector.distance(a, b) end)
     astar_state = AstarPathfind.search(astar_state)
-    Logger.info("astar_state = #{inspect astar_state, pretty: true}")
+    Logger.info("astar spt = #{inspect astar_state.shortest_path_tree, pretty: true}")
+    Logger.info("astar start stop = #{inspect astar_state.start, pretty: true} #{inspect astar_state.stop, pretty: true}")
+    Logger.info("astar np = #{inspect np, pretty: true}")
     path = AstarPathfind.get_path(astar_state, np)
     Logger.info("pat = #{inspect path, pretty: true}")
 
