@@ -1,6 +1,8 @@
 defmodule Geo do
   require Logger
 
+  # TODO: line/polygon oder is inconsistent
+
   @doc """
   Checks if a line intersects a polygon.
 
@@ -13,7 +15,6 @@ defmodule Geo do
   Returns `true` or `false`.
 
   """
-  # TODO: line/polygon oder is inconsistent
   def intersects?(line, polygon) do
     prev_point = List.last(polygon)
     intersects_helper(line, polygon, prev_point)
@@ -32,13 +33,13 @@ defmodule Geo do
   `[]` if there's no intersections.
 
   """
-  # TODO: line/polygon oder is inconsistent
   def intersections(line, polygon, opts \\ []) do
+    allow_points = Keyword.get(opts, :allow_points, false)
     prev_point = List.last(polygon)
     intersects_helper(line, polygon, prev_point, [])
     |> Enum.filter(fn
       {:intersection, _} -> true
-      {:point_intersection, _} -> if Keyword.get(opts, :allow_points, false) do true else false end
+      {:point_intersection, _} -> allow_points
       _ -> false
     end)
     |> Enum.map(fn {_, point} -> point end)
@@ -112,8 +113,31 @@ defmodule Geo do
   end
 
   # See https://khorbushko.github.io/article/2021/07/15/the-area-polygon-or-how-to-detect-line-segments-intersection.html for an explanation.
-  defp line_segment_intersection({{ax1, ay1}, {ax2, ay2}}=_line1, {{bx1, by1}, {bx2, by2}}=_line2) do
+  @doc """
+  Determine if `line1` and `line2` intersects.
+
+  ## Params
+  * `line1` a `{{x1, y1}, {x2, y2}}` line segment
+  * `line2` a `{{x3, y13, {x4, y4}}` line segment
+
+  Returns
+
+  * `:on_segment` if one line is on the other
+
+  * `:parallel` if the lines are parallel and do not intersect
+
+  * `{:point_intersection, {x, y}}` if either line has an endpoint (`{x, y}`)
+    on the other line
+
+  * `{:intersection, {x, y}}` if either line has an endpoint (`{x, y}`) on the
+  other line.
+
+
+  """
+  def line_segment_intersection(line1, line2) do
     # Logger.debug("\tintersection #{inspect line1} with #{inspect line2}")
+    {{ax1, ay1}, {ax2, ay2}} = line1
+    {{bx1, by1}, {bx2, by2}} = line2
     den = (by2 - by1) * (ax2 - ax1) - (bx2 - bx1) * (ay2 - ay1)
 
     if den == 0 do
@@ -182,15 +206,12 @@ defmodule Geo do
 
     {x, y}=point
     u = (((x - x1) * (x2 - x1)) + ((y - y1) * (y2 - y1))) / (((x2 - x1) * (x2 - x1)) + ((y2 - y1) * (y2 - y1)))
-    {nx, ny} = cond do
+
+    cond do
       u < 0 -> {x1, y1}
       u > 1 -> {x2, y2}
       true -> {x1 + u * (x2 - x1), y1 + u * (y2 - y1)}
     end
-    Logger.info("segment = #{inspect {{x1, y1}, {x2, y2}}}")
-    Logger.info("point = #{inspect point}")
-    Logger.info("result = #{inspect {nx, ny}}")
-    {nx, ny}
   end
 
   # ported from http://www.david-gouveia.com/portfolio/pathfinding-on-a-2d-polygonal-map/
@@ -255,6 +276,13 @@ defmodule Geo do
     left = Vector.sub(current, prev)
     right = Vector.sub(next, current)
     Vector.cross(left, right) < 0
+  end
+
+  @doc """
+  The opposite of is_inside?
+  """
+  def is_outside?(polygon, point, opts) do
+    not is_inside?(polygon, point, opts)
   end
 
   # Alternate, https://sourceforge.net/p/polyclipping/code/HEAD/tree/trunk/cpp/clipper.cpp#l438
@@ -391,13 +419,14 @@ defmodule Geo do
   end
 
   defp is_line_of_sight_helper(_name, points, {x, y}=line, :original) do
-    # We get all intersections but remove them ones that are identical to the
+    # We get all intersections but remove the ones that are identical to the
     # line. This allows us to enable "allow_points: true", but only see
     # intersections with other lines and _other_ polygon vertices (points).
     # This is necessary since we're always calling this with a line between two
     # polygon vertices. Without this, having "allow_points: true", every such
-    # line would immediately intersect at both ends.  TODO: line/polygon oder
-    # is inconsistent
+    # line would immediately intersect at both ends.
+
+    # TODO: line/polygon oder is inconsistent
     is =
       intersections(line, points, allow_points: true)
       |> Enum.map(fn {x, y} -> {round(x), round(y)} end)

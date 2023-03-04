@@ -35,7 +35,12 @@ defmodule AstarPathfind do
   end
 
   def search(state) do
-    search_helper(state)
+    start_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
+    state = search_helper(state)
+    end_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
+    elapsed_us = trunc(end_us - start_us)
+    Logger.info("A-star search took #{elapsed_us}µs")
+    state
   end
 
   def search_helper(%{queue: []}=state) do

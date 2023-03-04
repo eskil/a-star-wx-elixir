@@ -123,7 +123,7 @@ defmodule AstarWx do
     # stop = {87, 352}
     # stop = {90, 349}
     # stop = {91, 350}
-    stop = {62, 310}
+    # stop = {62, 310}
     line = {state.start, stop}
     np = find_nearest_point(state.polygons, line)
 
@@ -156,17 +156,17 @@ defmodule AstarWx do
   def handle_event({:wx, _id, _wx_ref, _something,
                     {:wxMouse, :left_down,
                      x, y,
-                     left_down, _middle_down, _right_down,
+                     _left_down, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
                      _wheel_rotation, _wheel_delta, _lines_per_action}}=_event,
     state
   ) do
-    Logger.info("click #{inspect {x, y}} #{left_down}")
+    Logger.info("click #{inspect {x, y}}")
     stop = {x, y}
     # stop = {87, 352}
     # stop = {90, 349}
     # stop = {91, 350}
-    stop = {62, 310}
+    # stop = {62, 310}
     line = {state.start, stop}
     np = find_nearest_point(state.polygons, line)
 
@@ -184,12 +184,12 @@ defmodule AstarWx do
   def handle_event({:wx, _id, _wx_ref, _something,
                     {:wxMouse, :left_up,
                      x, y,
-                     left_up, _middle_down, _right_down,
+                     _left_up, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
                      _wheel_rotation, _wheel_delta, _lines_per_action}}=_event,
     state
   ) do
-    Logger.info("click #{inspect {x, y}} #{left_up}")
+    Logger.info("click #{inspect {x, y}}")
     # Reset fields so we only show the debug graph
     {:noreply, %{state | click_walk_graph: nil, path: []}}
   end
@@ -418,8 +418,8 @@ defmodule AstarWx do
   end
 
   def draw_walk_graph(dc, state) do
-    light_red = {255, 0, 0, 128}
-    bright_red = {255, 87, 51, 192}
+    light_red = {255, 0, 0, 64}
+    bright_red = {255, 87, 51, 128}
     light_red_pen = :wxPen.new(light_red, [{:width,  1}, {:style, Wx.wxSOLID}])
     bright_red_pen = :wxPen.new(bright_red, [{:width,  1}, {:style, Wx.wxSOLID}])
 
@@ -485,7 +485,8 @@ defmodule AstarWx do
   Given a polygon map (main & holes) and list of vertices, makes the graph.
   """
   def create_walk_graph(polygons, vertices) do
-    # TODO: this is done a lot, commoditise?
+    start_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
+  # TODO: this is done a lot, commoditise?
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
     main = mains[:main]
 
@@ -510,7 +511,16 @@ defmodule AstarWx do
           end)
         {a_idx + 1, Map.put(acc1, a, inner_edges)}
       end)
-    Map.new(all_edges)
+    result = Map.new(all_edges)
+    end_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
+    elapsed_us = trunc(end_us - start_us)
+    cond do
+      elapsed_us > 1000 ->
+        Logger.info("Graph gen took #{elapsed_us/1000}ms")
+      true ->
+        Logger.info("Graph gen took #{elapsed_us}µs")
+    end
+    result
   end
 
   @doc """
@@ -584,8 +594,33 @@ defmodule AstarWx do
     # Actually a-star compute all four rounding and pick the shortest path -
     # that's a bit cpu heavy.
 
-    # Compute all four rounding and pick one that's *not* inside the hole.
-    {round(x), round(y)}
+    # Compute all four rounding and pick one that's *not* inside the hole, and don't allow it to be on the border
+
+    p = {round(x), round(y)}
+    a = {ceil(x), ceil(y)}
+    b = {ceil(x), floor(y)}
+    c = {floor(x), ceil(y)}
+    d = {floor(x), floor(y)}
+
+    # Logger.info("Checking options p #{inspect p} = #{inspect Geo.is_outside?(points, p, allow_border: false)}")
+    # Logger.info("                 a #{inspect a} = #{inspect Geo.is_outside?(points, a, allow_border: false)}")
+    # Logger.info("                 b #{inspect b} = #{inspect Geo.is_outside?(points, b, allow_border: false)}")
+    # Logger.info("                 c #{inspect c} = #{inspect Geo.is_outside?(points, c, allow_border: false)}")
+    # Logger.info("                 d #{inspect d} = #{inspect Geo.is_outside?(points, d, allow_border: false)}")
+
+    cond do
+      Geo.is_outside?(points, p, allow_border: false) ->
+        p
+      Geo.is_outside?(points, a, allow_border: false) ->
+        a
+      Geo.is_outside?(points, b, allow_border: false) ->
+        b
+      Geo.is_outside?(points, c, allow_border: false) ->
+        c
+      Geo.is_outside?(points, d, allow_border: false) ->
+        d
+    end
+    # If none of the points are outside, we'll pleasantly crash.
   end
 
   # Transform a json `[x, y]` list to a `{x, y}` tuple and ensure it's a integer (trunc)
