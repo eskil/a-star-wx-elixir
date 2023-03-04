@@ -99,19 +99,20 @@ defmodule AstarPathfind do
 
   def get_path(state, stop) do
     next = state.shortest_path_tree[stop]
-    Logger.info("start")
-    get_path(state, next, [stop])
+    get_path(state, state.start, next, [stop])
     |> Enum.reverse
   end
 
-  def get_path(_state, nil, acc) do
-    Logger.info("fin")
+  def get_path(_state, _start, nil, acc) do
     acc
   end
 
-  def get_path(state, node, acc) do
+  def get_path(_state, start, start, acc) do
+    acc ++ [start]
+  end
+
+  def get_path(state, start, node, acc) do
     next = state.shortest_path_tree[node]
-    Logger.info("skip #{inspect next} #{inspect node}")
-    get_path(state, next, acc ++ [node])
+    get_path(state, start, next, acc ++ [node])
   end
 end
