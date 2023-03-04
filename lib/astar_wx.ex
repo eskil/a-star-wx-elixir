@@ -48,11 +48,9 @@ defmodule AstarWx do
 
     Logger.info("\n\n\n")
     walk_vertices = get_walk_vertices(polygons)
-    walk_graph_old = create_walk_graph_old(polygons, walk_vertices)
-    walk_graph_new = create_walk_graph_new(polygons, walk_vertices)
+    walk_graph = create_walk_graph(polygons, walk_vertices)
 
-    Logger.info("walk graphs = #{inspect walk_graph_old, pretty: true}")
-    Logger.info("walk graphs = #{inspect walk_graph_new, pretty: true}")
+    Logger.info("walk graphs = #{inspect walk_graph, pretty: true}")
 
     state = %{
       wx_frame: frame,
@@ -70,7 +68,8 @@ defmodule AstarWx do
 
       # This is the list of fixed vertices (from the map) that we will draw
       fixed_walk_vertices: walk_vertices,
-      fixed_walk_graph: walk_graph_old,
+      fixed_walk_graph: walk_graph,
+      path: [],
 
       click_walk_graph: nil,
     }
@@ -125,12 +124,19 @@ defmodule AstarWx do
     np = find_nearest_point(state.polygons, line)
 
     walk_vertices = state.fixed_walk_vertices ++ [state.start, np]
-    walk_graph_old = create_walk_graph_old(state.polygons, walk_vertices)
+    walk_graph = create_walk_graph(state.polygons, walk_vertices)
+
+    astar_state = AstarPathfind.new(walk_graph, state.start, np, fn a, b -> Vector.distance(a, b) end)
+    astar_state = AstarPathfind.search(astar_state)
+    Logger.info("astar_state = #{inspect astar_state, pretty: true}")
+    path = AstarPathfind.get_path(astar_state, np)
+    Logger.info("pat = #{inspect path, pretty: true}")
 
     {:noreply, %{
         state |
-        click_walk_graph: walk_graph_old,
+        click_walk_graph: walk_graph,
         cursor: stop,
+        path: path,
      }
     }
   end
@@ -159,8 +165,15 @@ defmodule AstarWx do
     np = find_nearest_point(state.polygons, line)
 
     walk_vertices = state.fixed_walk_vertices ++ [state.start, np]
-    walk_graph_old = create_walk_graph_old(state.polygons, walk_vertices)
-    {:noreply, %{state | click_walk_graph: walk_graph_old}}
+    walk_graph = create_walk_graph(state.polygons, walk_vertices)
+
+    astar_state = AstarPathfind.new(walk_graph, state.start, np, fn a, b -> Vector.distance(a, b) end)
+    astar_state = AstarPathfind.search(astar_state)
+    Logger.info("astar_state = #{inspect astar_state, pretty: true}")
+    path = AstarPathfind.get_path(astar_state, np)
+    Logger.info("pat = #{inspect path, pretty: true}")
+
+    {:noreply, %{state | click_walk_graph: walk_graph, path: path}}
   end
 
   @impl true
@@ -174,7 +187,7 @@ defmodule AstarWx do
   ) do
     Logger.info("click #{inspect {x, y}} #{left_up}")
     # Reset fields so we only show the debug graph
-    {:noreply, %{state | click_walk_graph: nil}}
+    {:noreply, %{state | click_walk_graph: nil, path: []}}
   end
 
   @impl true
@@ -203,6 +216,7 @@ defmodule AstarWx do
 
     draw_walk_vertices(dc, state)
     draw_walk_graph(dc, state)
+    draw_walk_path(dc, state)
 
     # Draw
     paint_dc = :wxPaintDC.new(state.wx_panel)
@@ -407,13 +421,17 @@ defmodule AstarWx do
 
     if state.click_walk_graph do
       :wxDC.setPen(dc, bright_red_pen)
-      for {{a, b}, _} <- state.click_walk_graph do
-        :ok = :wxDC.drawLine(dc, a, b)
+      for {a, edges} <- state.click_walk_graph do
+        for {b, _} <- edges do
+          :ok = :wxDC.drawLine(dc, a, b)
+        end
       end
     else
       :wxDC.setPen(dc, light_red_pen)
-      for {{a, b}, _} <- state.fixed_walk_graph do
-        :ok = :wxDC.drawLine(dc, a, b)
+      for {a, edges} <- state.fixed_walk_graph do
+        for {b, _} <- edges do
+          :ok = :wxDC.drawLine(dc, a, b)
+        end
       end
     end
 
@@ -421,73 +439,87 @@ defmodule AstarWx do
     :wxPen.destroy(bright_red_pen)
   end
 
+  def draw_walk_path(dc, state) do
+    bright_green_pen = :wxPen.new({64, 255, 64}, [{:width,  3}, {:style, Wx.wxSOLID}])
+    :wxDC.setPen(dc, bright_green_pen)
+
+    pointsets = Enum.chunk_every(state.path, 2, 1)
+    Enum.map(pointsets, fn
+      [a, b] ->
+        :ok = :wxDC.drawLine(dc, a, b)
+      _ ->
+        :ok
+    end)
+
+    :wxPen.destroy(bright_green_pen)
+  end
+
+  @doc """
+  Given a list of polygons (main, & holes), returns a list of vertices.
+
+  The vertices are the main polygon's concave vertices and the convex ones of
+  the holes.
+  """
   def get_walk_vertices(polygons) do
     # TODO: this is done a lot, commoditise? Or ditch the "named" polygon concept.
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
 
     {concave, _} = Enum.reduce(mains, {[], []}, fn {_name, points}, {acc_concave, acc_convex} ->
       {concave, convex} = Geo.classify_vertices(points)
-      # Logger.info("polygon #{name} has concave #{inspect concave}")
       {acc_concave ++ concave, acc_convex ++ convex}
     end)
 
     {_, convex} = Enum.reduce(holes, {[], []}, fn {_name, points}, {acc_concave, acc_convex} ->
       {concave, convex} = Geo.classify_vertices(points)
-      # Logger.info("polygon #{name} has convex #{inspect convex}")
       {acc_concave ++ concave, acc_convex ++ convex}
     end)
-    # Logger.info("walk vertices = #{inspect concave++convex}")
+
     concave ++ convex
   end
 
-  def create_walk_graph_old(polygons, vertices) do
-    # TODO: this is done a lot, commoditise?
-    {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
-
-    {_, all_edges} =
-      Enum.reduce(vertices, {0, []}, fn a, {a_idx, acc1} ->
-        {_, inner_edges} =
-          Enum.reduce(vertices, {0, []}, fn b, {b_idx, acc2} ->
-            if a_idx != b_idx and Geo.is_line_of_sight?(mains[:main], holes, {a, b}) do
-              # TODO: use idx or actual points?
-              {b_idx + 1, acc2 ++ [{{a, b}, Vector.distance(a, b)}]}
-            else
-              {b_idx + 1, acc2}
-            end
-          end)
-        {a_idx + 1, acc1 ++ inner_edges}
-      end)
-
-    Map.new(all_edges)
-  end
-
-  def create_walk_graph_new(polygons, vertices) do
-    cost_fun = fn a, b -> Vector.distance(a, b) end
-
+  @doc """
+  Given a polygon map (main & holes) and list of vertices, makes the graph.
+  """
+  def create_walk_graph(polygons, vertices) do
     # TODO: this is done a lot, commoditise?
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
     main = mains[:main]
+
+    cost_fun = fn a, b -> Vector.distance(a, b) end
+    is_reachable? = fn a, b -> Geo.is_line_of_sight?(main, holes, {a, b}) end
 
     {_, all_edges} =
       Enum.reduce(vertices, {0, %{}}, fn a, {a_idx, acc1} ->
         {_, inner_edges} =
           Enum.reduce(vertices, {0, []}, fn b, {b_idx, acc2} ->
-            if a_idx != b_idx and Geo.is_line_of_sight?(main, holes, {a, b}) do
+            if a_idx != b_idx and is_reachable?.(a, b) do
               # TODO: use idx or actual points?
               {b_idx + 1, acc2 ++ [{b, cost_fun.(a, b)}]}
             else
               {b_idx + 1, acc2}
             end
           end)
-        Logger.info("inner edges = #{inspect inner_edges, pretty: true}")
-
         {a_idx + 1, Map.put(acc1, a, inner_edges)}
       end)
-
-    Logger.info("all edges = #{inspect all_edges, pretty: true}")
     Map.new(all_edges)
   end
 
+  @doc """
+  Find the nearest point on a polygen for the given line if it's outside the map or in a hole.
+
+  ## Params
+
+  * `polygons`, a `%{main: [...], hole: [...], hole2: [...]}` polygon map.
+  * `line`, a line from a to b, where b is the end, and we need to change it.
+
+  The function will return a new point for b such that
+
+  * if b is outside the main map, the new b is the closest point on the main
+  map.
+
+  * if b is inside the main map, but also inside a hole, the new bis the
+    closest point on the holes edges.
+  """
   def find_nearest_point([], {_start, stop}=_line) do
     stop
   end
@@ -532,10 +564,12 @@ defmodule AstarWx do
     {trunc(x), trunc(y)}
   end
 
-  def transform_point([x, y]) do
+  # Transform a json `[x, y]` list to a `{x, y}` tuple and ensure it's a integer (trunc)
+  defp transform_point([x, y]) do
     {trunc(x), trunc(y)}
   end
 
+  # Transform a json polygon, `name, [[x, y], [x, y]...]` list to a `{name, [{x, y}, ...]}`.
   def transform_walkbox({name, points}) do
     Logger.info("transform box -> #{inspect points}")
     points = Enum.map(points, &(transform_point(&1)))
@@ -548,6 +582,8 @@ defmodule AstarWx do
     |> Enum.map(&(transform_walkbox(&1)))
   end
 
+  # In case the json polygon is closed (last == first) point, drop the last
+  # since we handle them as open.
   def unclose_walkbox({name, points}) do
     if Enum.at(points, 0) == Enum.at(points, -1) do
       {name, Enum.drop(points, -1)}
@@ -563,8 +599,8 @@ defmodule AstarWx do
 
   def load_scene() do
     path = Application.app_dir(:astarwx)
-    filename = "#{path}/priv/scene21.json"
-    # filename = "#{path}/priv/complex.json"
+    # filename = "#{path}/priv/scene21.json"
+    filename = "#{path}/priv/complex.json"
     Logger.info("Processing #{filename}")
     {:ok, file} = File.read(filename)
     {:ok, json} = Poison.decode(file, keys: :atoms)

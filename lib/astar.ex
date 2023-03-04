@@ -1,46 +1,115 @@
 defmodule AstarPathfind do
   require Logger
 
-  defmodule Entry do
-    defstruct [
-      state: :unvisited,
-      shortest_distance_from_start: nil,
-      heuristic_distance_to_stop: nil,
-      total_distance: nil,
-      previous_node: nil,
+  def new(graph, start, stop, heur_fun) do
+    queue = [start]
 
-    ]
+    %{
+      start: start,
+      stop: stop,
+      graph: graph,
+
+      # (node, node) :: cost function
+      heur_fun: heur_fun,
+
+      queue: queue,
+      shortest_path_tree: %{},
+      frontier: %{},
+
+      # Distance from start to node
+      g_cost: %{},
+      # Distance from start to node + heuristic distance to end
+      f_cost: %{}
+    }
   end
 
-  def new(_graph, start, stop, heur_fun) do
-    queue = []
-      # graph
-      # |> Enum.reduce(%{}, fn {{v1, v2}, _d}, acc ->
-      #   Map.put(acc, v1, %Entry{heuristic_distance_to_stop: heuristic_dist_fun.(v1, stop)})
-      #   Map.put(acc, v2, %Entry{heuristic_distance_to_stop: heuristic_dist_fun.(v2, stop)})
-      # end)
-      # |> Map.to_list
-      # |> sort_queue_by_smallest_total_distance
-
-    %{start: start, stop: stop, heur_fun: heur_fun, queue: queue}
+  def sort_queue(queue, f_cost) do
+    Enum.sort_by(queue, fn e -> Map.get(f_cost, e) end, :asc)
   end
 
-  def sort_queue_by_smallest_total_distance(state) do
-    new_queue =
-      state.queue
-      |> Enum.sort_by(fn {_node, entry} -> entry.total_distance end, :asc)
-    %{state | queue: new_queue}
+  def add_to_queue(queue, node) do
+    Enum.sort(queue ++ [node])
+    |> Enum.dedup
   end
 
-  def search(%{queue: []}=state) do
+  def search(state) do
+    search_helper(state)
+  end
+
+  def search_helper(%{queue: []}=state) do
     state
   end
 
-  def search(%{queue: _queue}=state) do
-    state
+  def search_helper(%{queue: [current|queue]}=state) do
+    # Logger.info("\n\n\n-----------------------------------------\nSEARCH")
+    # Logger.info("state = #{inspect state, pretty: true}")
+    # Logger.info("current = #{inspect current, pretty: true}")
+
+    spt = Map.put(state.shortest_path_tree, current, Map.get(state.frontier, current))
+
+    if current == state.stop do
+      # Logger.info("stop, spt = #{inspect spt, pretty: true}")
+      %{state | shortest_path_tree: spt}
+    else
+      edges = Map.get(state.graph, current, [])
+      # |> Enum.reject(fn {node, _edge_cost} -> Map.has_key?(state.visited, node.node) end)
+
+      # Logger.info("edges = #{inspect edges, pretty: true}")
+
+      seed = {state.frontier, queue, state.g_cost, state.f_cost}
+      {f, q, g_cost, f_cost} = Enum.reduce(edges, seed, fn {node, edge_cost}, acc ->
+        {frontier, queue, g_cost, f_cost} = acc
+        # H cost
+        heur_cost = state.heur_fun.(node, state.stop)
+        # G cost
+        shortest_distance_from_start = Map.get(g_cost, current, 0) + edge_cost
+        # F cost = G cost + H cost
+        total_distance = shortest_distance_from_start + heur_cost
+
+        cond do
+          not Map.has_key?(frontier, node) ->
+            {
+              Map.put(frontier, node, current),
+              add_to_queue(queue, node),
+              Map.put(g_cost, node, shortest_distance_from_start),
+              Map.put(f_cost, node, total_distance),
+            }
+          shortest_distance_from_start < Map.get(g_cost, current, 0) and Map.get(spt, node) == nil ->
+            {
+              Map.put(frontier, node, current),
+              add_to_queue(queue, node),
+              Map.put(g_cost, node, shortest_distance_from_start),
+              Map.put(f_cost, node, total_distance),
+            }
+          true ->
+            {frontier, queue, g_cost, f_cost}
+        end
+      end)
+
+      new_state = %{
+        state |
+        queue: sort_queue(q, f_cost),
+        frontier: f,
+        f_cost: f_cost,
+        g_cost: g_cost,
+        shortest_path_tree: spt,
+      }
+      search_helper(new_state)
+    end
   end
 
-  def search_helper(state) do
-    state
+  def get_path(state, stop) do
+    next = state.shortest_path_tree[stop]
+    get_path(state, next, [stop])
+    |> Enum.reverse
+  end
+
+  def get_path(_state, nil, acc) do
+    acc
+  end
+
+  def get_path(state, node, acc) do
+    next = state.shortest_path_tree[node]
+    get_path(state, next, acc ++ [node])
   end
 end

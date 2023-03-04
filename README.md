@@ -142,31 +142,32 @@ class AstarAlgorithm {
 
 	private function search()
 	{
-		var pq:IndexedPriorityQueue = new IndexedPriorityQueue(F_Cost);
-		pq.insert(source);
-		while(!pq.isEmpty())
+		var queue:IndexedPriorityQueue = new IndexedPriorityQueue(F_Cost);
+		queue.insert(source);
+		while(!queue.isEmpty())
 		{
-			var next_closest_node:Int = pq.pop();
-			shortest_path_tree[next_closest_node]=search_frontier[next_closest_node];
-			if(next_closest_node==target)return;
+			var next_closest_node:Int = queue.pop();
+			shortest_path_tree[next_closest_node] = search_frontier[next_closest_node];
+			if (next_closest_node == target) return;
 			var edges:Array<GraphEdge>=graph.edges[next_closest_node];
 			for (edge in edges)
 			{
 				var heur_cost:Float = Vector.distance(graph.nodes[edge.to].pos, graph.nodes[target].pos)
 				var Gcost:Float = G_Cost[next_closest_node] + edge.cost;
-				var to:Int=edge.to;
+				var Fcost:Float = Gcost+heur_cost;
+				var to:Int=edge.to;L
 				if (search_frontier[edge.to] == null)
 				{
-					F_Cost[edge.to]=Gcost+heur_cost;
+					F_Cost[edge.to]=Fcost
 					G_Cost[edge.to]=Gcost;
-					pq.insert(edge.to);
+					queue.insert(edge.to);
 					search_frontier[edge.to]=edge;
 				}
 				else if ((Gcost < G_Cost[edge.to]) && (shortest_path_tree[edge.to] == null))
 				{
-					F_Cost[edge.to]=Gcost+heur_cost;
+					F_Cost[edge.to]=Fcost
 					G_Cost[edge.to]=Gcost;
-					pq.reorderUp();
+					queue.reorderUp();
 					search_frontier[edge.to]=edge;
 				}
 			}
