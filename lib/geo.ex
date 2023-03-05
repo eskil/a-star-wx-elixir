@@ -1,7 +1,8 @@
 defmodule Geo do
   @moduledoc """
-  Functions related to polygons and lines relevant for 2D map pathfinding. This
-  provides functions for;
+  Functions related to polygons and lines relevant for 2D map pathfinding.
+
+  This provides functions for;
 
   * line of sight between two points
 
@@ -263,10 +264,25 @@ defmodule Geo do
   @doc"""
   Split polygon into concave and convex vertices.
 
+  When doing pathfinding, there will typically be a outer polygon bounding the
+  "world" and multiple inner polygons describing "holes". The path can only be
+  within the outer polygon and has to "walk around" the holes.
+
+  Classifying the polygons into concave and convex gives the walkable graph.
+
+  The outer polygon's concave (pointing into the world) nodes should be used.
+
+  The holes' convex (point out of the hole, into the world) nodes should be used.
+
   ## Params
   * `polygon`, a list of `{x, y}` tuples outlining a polygon. This must be non-closed.
 
   Returns `{list of concave vertices, list of convex}`.
+
+  ## Examples
+      # A vaguely M shaped polygon
+      iex> Geo.classify_vertices([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}])
+      {[{1, 0.5}], [{0, 0}, {1, 0}, {2, 0}, {2, 1}, {0, 1}]}
   """
   def classify_vertices(polygon) do
     # We prepend the last vertex (-1) to the list and chunk into threes. That
