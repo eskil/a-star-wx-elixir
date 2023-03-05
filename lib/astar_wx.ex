@@ -467,15 +467,13 @@ defmodule AstarWx do
   def get_walk_vertices(polygons) do
     # TODO: this is done a lot, commoditise? Or ditch the "named" polygon concept.
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+    main = mains[:main]
 
-    {concave, _} = Enum.reduce(mains, {[], []}, fn {_name, points}, {acc_concave, acc_convex} ->
-      {concave, convex} = Geo.classify_vertices(points)
-      {acc_concave ++ concave, acc_convex ++ convex}
-    end)
+    {concave, _convex} = Geo.classify_vertices(main)
 
-    {_, convex} = Enum.reduce(holes, {[], []}, fn {_name, points}, {acc_concave, acc_convex} ->
-      {concave, convex} = Geo.classify_vertices(points)
-      {acc_concave ++ concave, acc_convex ++ convex}
+    convex = Enum.reduce(holes, [], fn {_name, points}, acc ->
+      {_, convex} = Geo.classify_vertices(points)
+      acc ++ convex
     end)
 
     concave ++ convex

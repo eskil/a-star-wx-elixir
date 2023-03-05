@@ -22,8 +22,8 @@ defmodule Geo do
   @doc """
   Checks if a line intersects a polygon.
 
-  This is a bare-minimum function, and for most cases using `intersections`
-  will be necessary.
+  This is a bare-minimum function, and for most cases using `intersections/2`
+  will be a better choice.
 
   ## Params
 
@@ -41,22 +41,37 @@ defmodule Geo do
   @doc """
   Get all intersections of a line with a polygon including their type.
 
+  This function basically calls `line_segment_intersection/2` for every segment
+  of the `polygon` against the `line` and filters the results to only include
+  the list of intersection points.
+
   ## Params
 
   * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
 
-  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
+  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a
+    polygon. This must be non-closed.
 
-  * `opts` options
+  * `opts`
 
-    * `:allow_points` (default `false`) wether a `on_point` intersection should
-      be considered an intersection or not. This varies from use
+    * `:allow_points` (default `false`) whether a `on_point` intersection
+      should be considered an intersection or not. This varies from use
       cases. Eg. when building a polygon, points will be connected and thus
-      intersect if seet `true`. This may not be the desired result, so `false`
-      won't consider points intersections.
+      intersect if `true`. This may not be the desired result, so `false` won't
+      consider points intersections.
 
   Returns a list of `{x, y}` tuples indicating where the line intersects, or
   `[]` if there's no intersections.
+
+  ## Examples
+      iex> polygon = [{0, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}]
+      [{0, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}]
+      iex> line = {{1, -1}, {1, 3}}
+      {{1, -1}, {1, 3}}
+      iex> Geo.intersections(line, polygon)
+      [{1.0, 0.0}]
+      iex> Geo.intersections(line, polygon, allow_points: true)
+      [{1.0, 0.0}, {1.0, 0.5}]
 
   """
   def intersections(line, polygon, opts \\ []) do
@@ -69,10 +84,13 @@ defmodule Geo do
       _ -> false
     end)
     |> Enum.map(fn {_, point} -> point end)
+    |> Enum.dedup
   end
 
   @doc """
   Get first intersections of a line with a polygon.
+
+  The "opposite" of `last_intersection/2`.
 
   ## Params
 
@@ -95,6 +113,8 @@ defmodule Geo do
 
   @doc """
   Get last intersections of a line with a polygon.
+
+  The "opposite" of `first_intersection/2`.
 
   ## Params
 
@@ -244,6 +264,19 @@ defmodule Geo do
   end
 
   # ported from http://www.david-gouveia.com/portfolio/pathfinding-on-a-2d-polygonal-map/
+  @doc """
+  Test if two lines intersect
+
+  This is a simpler version of `line_segment_intersection/2`, which is typically
+  a better choice since it can handle endpoints too.
+
+  ## Params
+  * `line1` a `{{x1, y1}, {x2, y2}}` line segment
+
+  * `line2` a `{{x3, y13, {x4, y4}}` line segment
+
+  Returns `true` if they intersect anywhere (at ends too), `false` otherwise.
+  """
   def lines_intersect({{ax1, ay1}, {ax2, ay2}}=_l1, {{bx1, by1}, {bx2, by2}}=_l2) do
     den = ((ax2 - ax1) * (by2 - by1)) - ((ay2 - ay1) * (bx2 - bx1))
     if den == 0 do
@@ -273,6 +306,19 @@ defmodule Geo do
   The outer polygon's concave (pointing into the world) nodes should be used.
 
   The holes' convex (point out of the hole, into the world) nodes should be used.
+
+  In code, this looks like
+
+  ```
+  {concave, _convex} = Geo.classify_vertices(world)
+
+  convex = Enum.reduce(holes, [], fn {_name, points}, acc ->
+    {_, convex} = Geo.classify_vertices(points)
+    acc ++ convex
+  end)
+
+  vertices = concave ++ convex
+  ```
 
   ## Params
   * `polygon`, a list of `{x, y}` tuples outlining a polygon. This must be non-closed.
