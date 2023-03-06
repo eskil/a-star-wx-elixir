@@ -1,15 +1,58 @@
 # AstarWx
 
-## Mix
+A graphical demo of
+[A-* 2d polygon map search](https://en.wikipedia.org/wiki/A*_search_algorithm)
+in Elixir using WxWidgets.
+
+## How to run
+
+Assuming you have
+[elixir installed](https://elixir-lang.org/install.html) (written with
+1.14). Build and run;
 
 ```
-mix new a-star-wx-elixir --app astarwx --module AstarWx --sup
+mix deps.get
+mix compile
+mix run --no-halt
 ```
+## How to run
 
-## Polygon map
+The "world" is made up of a primary polygon. Inside of this there are
+smaller polygons that make up holes. These are impassable.
 
-A polygon is a list of `{x, y}` tuples that represent screen
-coordinates. In elixir, it looks like
+[[/images/a-star-sample.gif|animated gif showing demo]]
+
+* The start point is a *green crosshair*.
+* The cursor position is a *red crosshair* if inside the main polution, *gray* if outside.
+* Moving the mouse will show a line from start to the cursor.
+  * It'll be *green* if the there's a line of sight.
+  * It'll be *gray* if no, and there'll be a *small red crosshair* at
+    the first blockage, and *small gray crosshair* all subsequent
+    blocks.
+* Holding down left mouse button will show full search graph in
+  *bright orange* and a *thick green path* for the found path.
+* Releasing the left mouse button resets the start to there.
+  * You can place the start outside the main polygon.
+
+## Internals
+
+### Vectors
+
+A vector is a tuple of positions, `{x, y}`.
+
+In `lib/vector.ex` you'll find the basic vector operations (dot,
+cross, length, add/sub) needed.
+
+### Lines
+
+A line is a tuple of vectors, `{{x1, y1}, {x2, y2}}`.
+
+### Polygon
+
+A polygon is a list of vertices (nodes) that are `{x, y}` tuples that
+represent screen coordinates.
+
+In elixir, it looks like
 
 ```elixir
 polygon = [{x, y}, {x, y}, ...]
@@ -18,7 +61,9 @@ polygon = [{x, y}, {x, y}, ...]
 The screen coordinate `0, 0` is upper left the x-axis goes
 left-to-right and y-axis top-to-bottom.
 
-The polygon is loaded from a json file, and looks like
+### Polygon map
+
+The map is loaded from a json file, and looks like
 
 ```json
 {
@@ -37,29 +82,23 @@ The polygon is loaded from a json file, and looks like
 ```
 
 The `main` polygon is the primary walking area - as complex as it
-needs to be. Subsequent polygons are holes within it.
+needs to be.
+
+Subsequent polygons (not named `main`) are holes within it.
 
 Polygons don't need to be closed (last `[x, y]` equals the first),
-that will be handled internally. The rendered polygons will be closed,
+this will be handled internally. The rendered polygons will be closed,
 and datastructures will operate on open/closed as necessary.
-
-The tool will display the polygon as a blue outline with a blue crosshair
-at each vertice.
 
 ## Graph
 
-The graph is a map from `vertice` to a list of `{vertice, cost}`;
+The graph is a map from `vertice` to a list of `{vertice, cost}`. This
+is computed from the polygon map using a set of vertice. This set is
+composed of;
 
-An `vertice` is somewhat opaque to the algorithm, it just uses them as
-keys.
+* the main polygon's *concave*  (pointing into the world)
+* the holes' *convex* (point out of the hole, into the world)
 
-Two functions are needed by the algorithm.
-One `cost_fun, (vertice, vertice) :: cost` to compute the cost
-(distance) between two vertices.
-
-One `heur_fun, (vertice, vertice) :: cost` to compute the heuristic cost.
-
-So the first data is a set of vertices.
 
 ```elixir
 vertices = [{x1, y1}=vertice1, {x2, y2}=vertice2, {x3, y3}=vertice3...]
@@ -68,6 +107,22 @@ vertices = [{x1, y1}=vertice1, {x2, y2}=vertice2, {x3, y3}=vertice3...]
 And this is transformed to a graph, where each entry is used as a key
 to a list of keys for other vertices. This transformation is not relevant
 to the A* algorithm, but the result is the input;
+
+
+An `edge` is a tuple of `{vertice1, vertice2, cost}`.
+
+### A-star
+
+An `vertice` is somewhat opaque to the algorithm, it just uses them as
+keys.
+
+By using whatever key the vetices list uses, we keep it simple, and
+whatever manages the vertices can keep the initial list short, yet
+also uses the keys to manage its own affairs.
+
+The A* algorithm thus receives;
+
+* `graph` to search
 
 ```elixir
 graph = %{
@@ -84,109 +139,24 @@ graph = %{
 }
 ```
 
-An `edge` is a tuple of `{vertice1, vertice2, cost}`.
+* `start` and `stop`, the vertices to find a path between.
 
-By using whatever key the vetices list uses, we keep it simple, and
-whatever manages the vertices can keep the initial list short, yet
-also uses the keys to manage its own affairs.
+* `heur_fun` function `vertice, vertice :: cost` computes heuristic cost. The common case in a 2D polygon map is the straight-line distance.
 
-The A* algorithm thus receives;
-
-* `graph` to search
-* `heur_fun` function `vertice, vertice :: cost` computes heuristic cost
+```elixir
+fn a, b -> Vector.distance(a, b) end
+```
 
 The state it maintains
 
-* `queue` priority queue / list `[vertice, vertice, ...]` sorted on an vertices cost.
+* `queue` priority queue / list `[vertice, vertice, ...]` sorted on the cost of the path from start to node to stop.
 * `shortest_path_tree`, a map of edges, `vertice => {vertice, cost}`
 
 
 ## Todo
 
+- [ ] Move a lot of the "hackityhacks" from `astar_wx.ex` to geo.ex.
 - [ ] Align on a single `polygon, point` argument order
 - [ ] The polygon "name" thing needs to be addressed - it def must not be in geo.ex
-- [ ] should walkgraph use indexes or points? Ie. `{{vertice_1_idx, vertice_2idx}, weight}` or `{{x1, y1}, {x2, y2}, weight}`?
 - [ ] vector naming, `start, stop`, `src, dst`
-
-
-###
-
-```
-class AstarAlgorithm {
-	public var graph:Graph;
-	public var shortest_path_tree:Array<GraphEdge>;
-	public var G_Cost:Array<Float>;	//This array will store the G cost of each node
-	public var F_Cost:Array<Float>;	//This array will store the F cost of each node
-	public var search_frontier:Array<GraphEdge>;
-	public var source:Int;
-	public var target:Int;
-
-	public function new(_graph:Graph,_source:Int,_target:Int)
-	{
-		graph=_graph;
-		source=_source;
-		target=_target;
-
-		shortest_path_tree= new Array<GraphEdge>();
-		G_Cost = new Array<Float>();
-		F_Cost = new Array<Float>();
-		search_frontier = new Array<GraphEdge>();
-
-		for (i in 0...graph.nodes.length) {
-			G_Cost[i] = 0;
-			F_Cost[i] = 0;
-		}
-
-		search();
-	}
-
-	private function search()
-	{
-		var queue:IndexedPriorityQueue = new IndexedPriorityQueue(F_Cost);
-		queue.insert(source);
-		while(!queue.isEmpty())
-		{
-			var next_closest_node:Int = queue.pop();
-			shortest_path_tree[next_closest_node] = search_frontier[next_closest_node];
-			if (next_closest_node == target) return;
-			var edges:Array<GraphEdge>=graph.edges[next_closest_node];
-			for (edge in edges)
-			{
-				var heur_cost:Float = Vector.distance(graph.nodes[edge.to].pos, graph.nodes[target].pos)
-				var Gcost:Float = G_Cost[next_closest_node] + edge.cost;
-				var Fcost:Float = Gcost+heur_cost;
-				var to:Int=edge.to;L
-				if (search_frontier[edge.to] == null)
-				{
-					F_Cost[edge.to]=Fcost
-					G_Cost[edge.to]=Gcost;
-					queue.insert(edge.to);
-					search_frontier[edge.to]=edge;
-				}
-				else if ((Gcost < G_Cost[edge.to]) && (shortest_path_tree[edge.to] == null))
-				{
-					F_Cost[edge.to]=Fcost
-					G_Cost[edge.to]=Gcost;
-					queue.reorderUp();
-					search_frontier[edge.to]=edge;
-				}
-			}
-		}
-	}
-
-	public function getPath():Array<Int>
-	{
-		var path:Array<Int> = new Array();
-		if(target<0) return path;
-		var nd:Int = target;
-		path.push(nd);
-		while((nd!=source)&&(shortest_path_tree[nd]!=null))
-		{
-			nd = shortest_path_tree[nd].from;
-			path.push(nd);
-		}
-		path.reverse();
-		return path;
-	}
-}
-```
+- [ ] Little to no error check of polygon overlap, self-intersection, holes cutting the primary etc.

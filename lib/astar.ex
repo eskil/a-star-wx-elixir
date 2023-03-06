@@ -50,7 +50,7 @@ defmodule AstarPathfind do
   def search_helper(%{queue: [current|queue]}=state) do
     # Logger.info("\n\n\n-----------------------------------------\nSEARCH")
     # Logger.info("current = #{inspect current, pretty: true}")
-    # Logger.info("state = #{inspect Map.delete(state, :graph), pretty: true}")
+    Logger.info("state = #{inspect Map.delete(state, :graph), pretty: true}")
 
     spt = Map.put(state.shortest_path_tree, current, Map.get(state.frontier, current))
 
@@ -102,13 +102,13 @@ defmodule AstarPathfind do
             end
           end)
 
-      new_state = %{
-        state |
-        queue: sort_queue(q, f_cost),
-        frontier: f,
-        f_cost: f_cost,
-        g_cost: g_cost,
-        shortest_path_tree: spt,
+        new_state = %{
+          state |
+          queue: sort_queue(q, f_cost),
+          frontier: f,
+          f_cost: f_cost,
+          g_cost: g_cost,
+          shortest_path_tree: spt,
         }
 
       search_helper(new_state)

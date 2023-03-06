@@ -37,6 +37,9 @@ defmodule AstarWx do
 
     :wxFrame.show(frame)
 
+    cursor = :wxCursor.new(Wx.wxCURSOR_BLANK)
+    :wxWindow.setCursor(panel, cursor)
+
     # This is what we draw on.
     blitmap = :wxBitmap.new(@width, @height)
     memory_dc = :wxMemoryDC.new(blitmap)
@@ -283,7 +286,7 @@ defmodule AstarWx do
 
   def draw_cursor(dc, cursor, polygons) do
     light_gray = {211, 211, 211}
-    bright_green = {0, 255, 0}
+    bright_red = {255, 0, 0}
 
     # TODO: this is done a lot, commoditise?
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
@@ -300,7 +303,7 @@ defmodule AstarWx do
       if is_in_hole do
         WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)
       else
-        WxUtils.wx_crosshair(dc, cursor, bright_green, size: 6)
+        WxUtils.wx_crosshair(dc, cursor, bright_red, size: 6)
       end
     else
       WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)

@@ -303,9 +303,9 @@ defmodule Geo do
 
   Classifying the polygons into concave and convex gives the walkable graph.
 
-  The outer polygon's concave (pointing into the world) nodes should be used.
+  The outer polygon's concave (pointing into the world) vertices should be used.
 
-  The holes' convex (point out of the hole, into the world) nodes should be used.
+  The holes' convex (point out of the hole, into the world) vertices should be used.
 
   In code, this looks like
 
