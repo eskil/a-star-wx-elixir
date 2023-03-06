@@ -176,6 +176,7 @@ defmodule AstarWx do
     {:noreply, %{
         state |
         click_walk_graph: nil,
+        start: {x, y},
         path: [],
      }
     }
