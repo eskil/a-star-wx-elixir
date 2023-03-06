@@ -449,24 +449,12 @@ defmodule AstarWx do
     line = {start, stop}
     np = find_nearest_point(polygons, line)
 
-    old_vertices = vertices ++ [start, np]
-    old_graph = create_walk_graph(polygons, old_vertices)
+    {new_graph, new_vertices} = extend_graph(polygons, graph, vertices, [start, np])
 
-    {new_graph, _new_vertices} = extend_graph(polygons, graph, vertices, [start, np])
-
-    # COMPARE OLD WITH NEW
-    Logger.info("Old graph #{inspect old_graph, pretty: true}")
-    Logger.info("new graph #{inspect new_graph, pretty: true}")
-    if Map.equal?(new_graph, old_graph) do
-      Logger.warning("graphs equal")
-    else
-      Logger.error("graphs NOT equal")
-    end
-
-    astar_state = AstarPathfind.new(old_graph, start, np, fn a, b -> Vector.distance(a, b) end)
+    astar_state = AstarPathfind.new(new_graph, start, np, fn a, b -> Vector.distance(a, b) end)
     astar_state = AstarPathfind.search(astar_state)
     path = AstarPathfind.get_path(astar_state, np)
-    {old_graph, old_vertices, path}
+    {new_graph, new_vertices, path}
   end
 
   @doc """
@@ -499,7 +487,7 @@ defmodule AstarWx do
       Enum.reduce(points_a, {0, %{}}, fn a, {a_idx, acc1} ->
         {_, inner_edges} =
           Enum.reduce(points_b, {0, []}, fn b, {b_idx, acc2} ->
-            if a_idx != b_idx and is_reachable?.(a, b) do
+            if a != b and is_reachable?.(a, b) do
               # TODO: use idx or actual points?
               {b_idx + 1, acc2 ++ [{b, cost_fun.(a, b)}]}
             else
@@ -539,43 +527,40 @@ defmodule AstarWx do
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
     main = mains[:main]
 
-    cost_fun = fn a, b -> Vector.distance(a, b) end
-    is_reachable? = fn a, b -> Geo.is_line_of_sight?(main, holes, {a, b}) end
-    vertices = vertices ++ points
+    # To extend the graph `graph` made up up `vertices` with new points
+    # `points`, we need to find three sets of edges (sub-graphs). The ones from
+    # the new points to the existing vertices, vice-versa, and between the new
+    # points.
+    set_a = get_edges(main, holes, points, vertices)
+    set_b = get_edges(main, holes, vertices, points)
+    set_c = get_edges(main, holes, points, points)
+    # Logger.info("set_a, points to vertices = #{inspect set_a, pretty: true}")
+    # Logger.info("set_b, points to vertices = #{inspect set_b, pretty: true}")
+    # Logger.info("set_c, points to points = #{inspect set_c, pretty: true}")
 
-    {_, all_edges} =
-      Enum.reduce(points, {0, %{}}, fn a, {a_idx, acc1} ->
-        {_, inner_edges} =
-          Enum.reduce(vertices, {0, []}, fn b, {b_idx, acc2} ->
-            Logger.info("New way, check #{inspect a} to #{inspect b} = #{is_reachable?.(a, b)}")
-            if a != b and is_reachable?.(a, b) do
-              # TODO: use idx or actual points?
-              {b_idx + 1, acc2 ++ [{b, cost_fun.(a, b)}]}
-            else
-              {b_idx + 1, acc2}
-            end
-          end)
-        Logger.info("   inner edges for #{inspect a} to #{inspect inner_edges}")
-        {a_idx + 1, Map.put(acc1, a, inner_edges)}
-      end)
-    new_edges = Map.new(all_edges)
-    Logger.info("   new edges for #{inspect new_edges, pretty: true}")
-    Logger.info("   merge to for #{inspect graph, pretty: true}")
+    # Merge the three new sub-graphs into graph. This uses Map.merge with a
+    # merge func that combines values for identical keys (basically extend
+    # them) and dedupes.
+    merge_fun = fn _k, v1, v2 ->
+      Enum.dedup(v1 ++ v2)
+    end
+    graph =
+      graph
+      |> Map.merge(set_a, merge_fun)
+      |> Map.merge(set_b, merge_fun)
+      |> Map.merge(set_c, merge_fun)
+
+    result = {graph, vertices ++ points}
 
     end_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
     elapsed_us = trunc(end_us - start_us)
     cond do
       elapsed_us > 1000 ->
-        Logger.info("Insert into graph took #{elapsed_us/1000}ms")
+        Logger.info("Extend graph took #{elapsed_us/1000}ms")
       true ->
-        Logger.info("Insert into graph took #{elapsed_us}µs")
+        Logger.info("Extend graph took #{elapsed_us}µs")
     end
-
-    merge = fn _k, v1, v2 ->
-      Enum.dedup(v1 ++ v2)
-    end
-
-    {Map.merge(graph, new_edges, merge), vertices ++ points}
+    result
   end
 
   @doc """
@@ -713,8 +698,8 @@ defmodule AstarWx do
 
   def load_scene() do
     path = Application.app_dir(:astarwx)
-    filename = "#{path}/priv/scene1.json"
-    # filename = "#{path}/priv/complex.json"
+    # filename = "#{path}/priv/scene1.json"
+    filename = "#{path}/priv/complex.json"
     Logger.info("Processing #{filename}")
     {:ok, file} = File.read(filename)
     {:ok, json} = Poison.decode(file, keys: :atoms)
