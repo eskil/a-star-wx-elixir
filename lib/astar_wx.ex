@@ -445,21 +445,28 @@ defmodule AstarWx do
     :wxPen.destroy(bright_green_pen)
   end
 
-  def get_updated_graph_vertices_path(polygons, vertices, _graph, start, stop) do
+  def get_updated_graph_vertices_path(polygons, vertices, graph, start, stop) do
     line = {start, stop}
     np = find_nearest_point(polygons, line)
 
-    vertices = vertices ++ [start, np]
-    graph = create_walk_graph(polygons, vertices)
+    old_vertices = vertices ++ [start, np]
+    old_graph = create_walk_graph(polygons, old_vertices)
 
-    # {graph, vertices} = insert_into_graph(polygons, graph, vertices, [start, np])
+    {new_graph, _new_vertices} = extend_graph(polygons, graph, vertices, [start, np])
 
     # COMPARE OLD WITH NEW
+    Logger.info("Old graph #{inspect old_graph, pretty: true}")
+    Logger.info("new graph #{inspect new_graph, pretty: true}")
+    if Map.equal?(new_graph, old_graph) do
+      Logger.warning("graphs equal")
+    else
+      Logger.error("graphs NOT equal")
+    end
 
-    astar_state = AstarPathfind.new(graph, start, np, fn a, b -> Vector.distance(a, b) end)
+    astar_state = AstarPathfind.new(old_graph, start, np, fn a, b -> Vector.distance(a, b) end)
     astar_state = AstarPathfind.search(astar_state)
     path = AstarPathfind.get_path(astar_state, np)
-    {graph, vertices, path}
+    {old_graph, old_vertices, path}
   end
 
   @doc """
@@ -483,22 +490,15 @@ defmodule AstarWx do
     concave ++ convex
   end
 
-  @doc """
-  Given a polygon map (main & holes) and list of vertices, makes the graph.
-  """
-  def create_walk_graph(polygons, vertices) do
-    start_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
-    # TODO: this is done a lot, commoditise?
-    {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
-    main = mains[:main]
-
+  def get_edges(polygon, holes, points_a, points_b) do
     cost_fun = fn a, b -> Vector.distance(a, b) end
-    is_reachable? = fn a, b -> Geo.is_line_of_sight?(main, holes, {a, b}) end
+    is_reachable? = fn a, b -> Geo.is_line_of_sight?(polygon, holes, {a, b}) end
 
+    # O(n^2) check all vertice combos for reachability...
     {_, all_edges} =
-      Enum.reduce(vertices, {0, %{}}, fn a, {a_idx, acc1} ->
+      Enum.reduce(points_a, {0, %{}}, fn a, {a_idx, acc1} ->
         {_, inner_edges} =
-          Enum.reduce(vertices, {0, []}, fn b, {b_idx, acc2} ->
+          Enum.reduce(points_b, {0, []}, fn b, {b_idx, acc2} ->
             if a_idx != b_idx and is_reachable?.(a, b) do
               # TODO: use idx or actual points?
               {b_idx + 1, acc2 ++ [{b, cost_fun.(a, b)}]}
@@ -508,7 +508,20 @@ defmodule AstarWx do
           end)
         {a_idx + 1, Map.put(acc1, a, inner_edges)}
       end)
-    result = Map.new(all_edges)
+    Map.new(all_edges)
+  end
+
+  @doc """
+  Given a polygon map (main & holes) and list of vertices, makes the graph.
+  """
+  def create_walk_graph(polygons, vertices) do
+    start_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
+    # TODO: this is done a lot, commoditise?
+    {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+    main = mains[:main]
+
+    result = get_edges(main, holes, vertices, vertices)
+
     end_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
     elapsed_us = trunc(end_us - start_us)
     cond do
@@ -520,7 +533,7 @@ defmodule AstarWx do
     result
   end
 
-  def insert_into_graph(polygons, vertices, graph, points) do
+  def extend_graph(polygons, graph, vertices, points) do
     start_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
     # TODO: this is done a lot, commoditise?
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
@@ -528,21 +541,26 @@ defmodule AstarWx do
 
     cost_fun = fn a, b -> Vector.distance(a, b) end
     is_reachable? = fn a, b -> Geo.is_line_of_sight?(main, holes, {a, b}) end
+    vertices = vertices ++ points
 
     {_, all_edges} =
       Enum.reduce(points, {0, %{}}, fn a, {a_idx, acc1} ->
         {_, inner_edges} =
           Enum.reduce(vertices, {0, []}, fn b, {b_idx, acc2} ->
-            if a_idx != b_idx and is_reachable?.(a, b) do
+            Logger.info("New way, check #{inspect a} to #{inspect b} = #{is_reachable?.(a, b)}")
+            if a != b and is_reachable?.(a, b) do
               # TODO: use idx or actual points?
               {b_idx + 1, acc2 ++ [{b, cost_fun.(a, b)}]}
             else
               {b_idx + 1, acc2}
             end
           end)
+        Logger.info("   inner edges for #{inspect a} to #{inspect inner_edges}")
         {a_idx + 1, Map.put(acc1, a, inner_edges)}
       end)
     new_edges = Map.new(all_edges)
+    Logger.info("   new edges for #{inspect new_edges, pretty: true}")
+    Logger.info("   merge to for #{inspect graph, pretty: true}")
 
     end_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
     elapsed_us = trunc(end_us - start_us)
@@ -553,7 +571,11 @@ defmodule AstarWx do
         Logger.info("Insert into graph took #{elapsed_us}µs")
     end
 
-    {Map.merge(graph, new_edges), vertices ++ points}
+    merge = fn _k, v1, v2 ->
+      Enum.dedup(v1 ++ v2)
+    end
+
+    {Map.merge(graph, new_edges, merge), vertices ++ points}
   end
 
   @doc """
