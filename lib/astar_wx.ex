@@ -118,25 +118,14 @@ defmodule AstarWx do
                     {:wxMouse, :motion, x, y,
                      true, _middle_down, _right_down,
                      _control_down, _shift_down, _alt_down, _meta_down,
-                     _wheel_rotation, _wheel_delta, _lines_per_action}}=_event, state) do
+                     _wheel_rotation, _wheel_delta, _lines_per_action}}=_event, state
+  ) do
     stop = {x, y}
-    # stop = {87, 352}
-    # stop = {90, 349}
-    # stop = {91, 350}
-    # stop = {62, 310}
-    line = {state.start, stop}
-    np = find_nearest_point(state.polygons, line)
-
-    walk_vertices = state.fixed_walk_vertices ++ [state.start, np]
-    walk_graph = create_walk_graph(state.polygons, walk_vertices)
-
-    astar_state = AstarPathfind.new(walk_graph, state.start, np, fn a, b -> Vector.distance(a, b) end)
-    astar_state = AstarPathfind.search(astar_state)
-    path = AstarPathfind.get_path(astar_state, np)
+    {graph, _vertices, path} = get_updated_graph_vertices_path(state.polygons, state.fixed_walk_vertices, state.fixed_walk_graph, state.start, stop)
 
     {:noreply, %{
         state |
-        click_walk_graph: walk_graph,
+        click_walk_graph: graph,
         cursor: stop,
         path: path,
      }
@@ -163,21 +152,14 @@ defmodule AstarWx do
   ) do
     Logger.info("click #{inspect {x, y}}")
     stop = {x, y}
-    # stop = {87, 352}
-    # stop = {90, 349}
-    # stop = {91, 350}
-    # stop = {62, 310}
-    line = {state.start, stop}
-    np = find_nearest_point(state.polygons, line)
+    {graph, _vertices, path} = get_updated_graph_vertices_path(state.polygons, state.fixed_walk_vertices, state.fixed_walk_graph, state.start, stop)
 
-    walk_vertices = state.fixed_walk_vertices ++ [state.start, np]
-    walk_graph = create_walk_graph(state.polygons, walk_vertices)
-
-    astar_state = AstarPathfind.new(walk_graph, state.start, np, fn a, b -> Vector.distance(a, b) end)
-    astar_state = AstarPathfind.search(astar_state)
-    path = AstarPathfind.get_path(astar_state, np)
-
-    {:noreply, %{state | click_walk_graph: walk_graph, path: path}}
+    {:noreply, %{
+        state |
+        click_walk_graph: graph,
+        path: path,
+     }
+    }
   end
 
   @impl true
@@ -191,7 +173,12 @@ defmodule AstarWx do
   ) do
     Logger.info("click #{inspect {x, y}}")
     # Reset fields so we only show the debug graph
-    {:noreply, %{state | click_walk_graph: nil, path: []}}
+    {:noreply, %{
+        state |
+        click_walk_graph: nil,
+        path: [],
+     }
+    }
   end
 
   @impl true
@@ -458,6 +445,23 @@ defmodule AstarWx do
     :wxPen.destroy(bright_green_pen)
   end
 
+  def get_updated_graph_vertices_path(polygons, vertices, _graph, start, stop) do
+    line = {start, stop}
+    np = find_nearest_point(polygons, line)
+
+    vertices = vertices ++ [start, np]
+    graph = create_walk_graph(polygons, vertices)
+
+    # {graph, vertices} = insert_into_graph(polygons, graph, vertices, [start, np])
+
+    # COMPARE OLD WITH NEW
+
+    astar_state = AstarPathfind.new(graph, start, np, fn a, b -> Vector.distance(a, b) end)
+    astar_state = AstarPathfind.search(astar_state)
+    path = AstarPathfind.get_path(astar_state, np)
+    {graph, vertices, path}
+  end
+
   @doc """
   Given a list of polygons (main, & holes), returns a list of vertices.
 
@@ -484,7 +488,7 @@ defmodule AstarWx do
   """
   def create_walk_graph(polygons, vertices) do
     start_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
-  # TODO: this is done a lot, commoditise?
+    # TODO: this is done a lot, commoditise?
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
     main = mains[:main]
 
@@ -495,11 +499,6 @@ defmodule AstarWx do
       Enum.reduce(vertices, {0, %{}}, fn a, {a_idx, acc1} ->
         {_, inner_edges} =
           Enum.reduce(vertices, {0, []}, fn b, {b_idx, acc2} ->
-            if a == {87, 352} or b == {87, 352} do
-              Logger.info("Checking a = #{inspect a} b = #{inspect b}")
-              Logger.info("a_idx = #{a_idx} b_idx = #{b_idx}")
-              Logger.info("is_reachable?.(a, b) = #{is_reachable?.(a, b)}")
-            end
             if a_idx != b_idx and is_reachable?.(a, b) do
               # TODO: use idx or actual points?
               {b_idx + 1, acc2 ++ [{b, cost_fun.(a, b)}]}
@@ -519,6 +518,42 @@ defmodule AstarWx do
         Logger.info("Graph gen took #{elapsed_us}µs")
     end
     result
+  end
+
+  def insert_into_graph(polygons, vertices, graph, points) do
+    start_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
+    # TODO: this is done a lot, commoditise?
+    {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+    main = mains[:main]
+
+    cost_fun = fn a, b -> Vector.distance(a, b) end
+    is_reachable? = fn a, b -> Geo.is_line_of_sight?(main, holes, {a, b}) end
+
+    {_, all_edges} =
+      Enum.reduce(points, {0, %{}}, fn a, {a_idx, acc1} ->
+        {_, inner_edges} =
+          Enum.reduce(vertices, {0, []}, fn b, {b_idx, acc2} ->
+            if a_idx != b_idx and is_reachable?.(a, b) do
+              # TODO: use idx or actual points?
+              {b_idx + 1, acc2 ++ [{b, cost_fun.(a, b)}]}
+            else
+              {b_idx + 1, acc2}
+            end
+          end)
+        {a_idx + 1, Map.put(acc1, a, inner_edges)}
+      end)
+    new_edges = Map.new(all_edges)
+
+    end_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
+    elapsed_us = trunc(end_us - start_us)
+    cond do
+      elapsed_us > 1000 ->
+        Logger.info("Insert into graph took #{elapsed_us/1000}ms")
+      true ->
+        Logger.info("Insert into graph took #{elapsed_us}µs")
+    end
+
+    {Map.merge(graph, new_edges), vertices ++ points}
   end
 
   @doc """
@@ -656,8 +691,8 @@ defmodule AstarWx do
 
   def load_scene() do
     path = Application.app_dir(:astarwx)
-    # filename = "#{path}/priv/scene21.json"
-    filename = "#{path}/priv/complex.json"
+    filename = "#{path}/priv/scene1.json"
+    # filename = "#{path}/priv/complex.json"
     Logger.info("Processing #{filename}")
     {:ok, file} = File.read(filename)
     {:ok, json} = Poison.decode(file, keys: :atoms)

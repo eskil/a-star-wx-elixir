@@ -3,6 +3,8 @@ defmodule GeoTest do
 
   doctest Geo
 
+  polygon = [{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}]
+
   test "detects intersection" do
     line = {{0, 0}, {10, 10}}
     polygon = [{0, 10}, {10, 10}, {10, 0}, {0, 0}, {0, 10}]
