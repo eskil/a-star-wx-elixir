@@ -595,6 +595,7 @@ defmodule AstarWx do
   end
 
   def find_nearest_point_helper(points, _holes, line, false) do
+    Logger.warning("outside main polygon")
     find_nearest_stop_point(points, line)
   end
 
@@ -613,7 +614,8 @@ defmodule AstarWx do
   end
 
   def find_nearest_point_in_holes_helper([hole|_holes], line, true) do
-    {_name, points} = hole
+    {name, points} = hole
+    Logger.warning("inside #{name}")
     find_nearest_stop_point(points, line)
   end
 
