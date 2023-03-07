@@ -491,6 +491,7 @@ defmodule AstarWx do
   The vertices are the main polygon's concave vertices and the convex ones of
   the holes.
   """
+  # TODO: move to a polygon_map.ex
   def get_walk_vertices(polygons) do
     {main, holes} = Scene.classify_polygons(polygons)
     {concave, _convex} = Geo.classify_vertices(main)
@@ -503,6 +504,7 @@ defmodule AstarWx do
     concave ++ convex
   end
 
+  # TODO: move to a polygon_map.ex
   def get_edges(polygon, holes, points_a, points_b) do
     cost_fun = fn a, b -> Vector.distance(a, b) end
     is_reachable? = fn a, b -> Geo.is_line_of_sight?(polygon, holes, {a, b}) end
@@ -527,6 +529,7 @@ defmodule AstarWx do
   @doc """
   Given a polygon map (main & holes) and list of vertices, makes the graph.
   """
+  # TODO: move to a polygon_map.ex
   def create_walk_graph(polygons, vertices) do
     {main, holes} = Scene.classify_polygons(polygons)
     get_edges(main, holes, vertices, vertices)
@@ -542,17 +545,13 @@ defmodule AstarWx do
   fixed nodes and extend it with the moveable points.
 
   ## Params
-
   * `polygons`, a `%{main: [...], hole: [...], hole2: [...]}` polygon map.
-
   * `graph`, the fixed graph, eg. created via `create_walk_graph/2`.
-
   * `vertices` the nodes used to create `graph`.
-
   * `points` a list of coordinates, `[{x, y}, {x, y}...]`, to extend
 
   """
-
+  # TODO: move to a polygon_map.ex
   def extend_graph(polygons, graph, vertices, points) do
     {main, holes} = Scene.classify_polygons(polygons)
 
@@ -593,11 +592,11 @@ defmodule AstarWx do
   The function will return a new point for b such that
 
   * if b is outside the main map, the new b is the closest point on the main
-  map.
-
+    map.
   * if b is inside the main map, but also inside a hole, the new bis the
     closest point on the holes edges.
   """
+  # TODO: move to a polygon_map.ex
   def find_nearest_point([], {_start, stop}=_line) do
     stop
   end

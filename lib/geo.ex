@@ -154,12 +154,11 @@ defmodule Geo do
   * `line2` a `{{x3, y13, {x4, y4}}` line segment
 
   Returns
-  * `:on_segment` if one line is on the other
-  * `:parallel` if the lines are parallel and do not intersect
-  * `{:point_intersection, {x, y}}` if either line has an endpoint (`{x, y}`)
-    on the other line
-  * `{:intersection, {x, y}}` if either line has an endpoint (`{x, y}`) on the
-    other line.
+  * `:on_segment` one line is on the other.
+  * `:parallel` the lines are parallel and do not intersect.
+  * `{:point_intersection, {x, y}}` either line has an endpoint (`{x, y}`) on
+    the other line.
+  * `{:intersection, {x, y}}` the lines intersect at `{x, y}`.
   * `:none` no intersection.
 
   ## Examples
@@ -201,13 +200,21 @@ defmodule Geo do
     end
   end
 
+  @doc """
+  Get the distance squared from a point to a line/segment.
+
+  ## Params
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
+  * `point` a tuple `{x, y}` describing a point
+
+  This returns the square of the distance beween the given point and segment as
+  a float.
+
+  ## Examples
+      iex> Geo.distance_to_segment_squared({{2, 0}, {2, 2}}, {0, 1})
+      4.0
+  """
   def distance_to_segment_squared({{vx, vy}=v, {wx, wy}=w}=_line, {px, py}=point) do
-    # var l2:Float = DistanceSquared(vx,vy,wx,wy);
-		# if (l2 == 0) return DistanceSquared(px, py, vx, vy);
-		# var t:Float = ((px - vx) * (wx - vx) + (py - vy) * (wy - vy)) / l2;
-		# if (t < 0) return DistanceSquared(px, py, vx, vy);
-		# if (t > 1) return DistanceSquared(px, py, wx, wy);
-		# return DistanceSquared(px, py, vx + t * (wx - vx), vy + t * (wy - vy));
     l2 = Vector.distance_squared(v, w)
     if l2 == 0.0 do
       Vector.distance_squared(point, v)
@@ -221,17 +228,62 @@ defmodule Geo do
     end
   end
 
+  @doc """
+  Get the distance from a point to a line/segment, aka the square root of
+  `distance_squared/2`.
+
+  ## Params
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
+  * `point` a tuple `{x, y}` describing a point
+
+  This returns the distance beween the given point and segment as a float.
+
+  ## Examples
+      iex> Geo.distance_to_segment({{2, 0}, {2, 2}}, {0, 1})
+      2.0
+  """
   def distance_to_segment(line, point) do
     :math.sqrt(distance_to_segment_squared(line, point))
   end
 
+  @doc """
+  Find the edge of a polygon nearest a given point
+
+  Given a `point` that's inside or outside a given `polygon`, this checks each
+  segment of the polygon, and returns the nearest one.
+
+  ## Params
+  * `polygon`, a list of `{x, y}` vertices, `[{x1, y2}, {x2, y2}, ...]`. This
+    must be non-closed.
+  * `point` a tuple `{x, y}` describing a point
+
+  Returns the `{{x1, y1}, {x2, y2}}` segment that is closest to the point.
+  """
+  def nearest_edge(polygon, point) do
+    # Get the closest segment of the polygon
+    polygon
+    |> Enum.chunk_every(2, 1, Enum.slice(polygon, 0, 2))
+    |> Enum.map(fn [a, b] -> {a, b} end)
+    |> Enum.min_by(&(distance_to_segment(&1, point)))
+  end
+
+  @doc """
+  Find the point on the edge of a polygon nearest a given point.
+
+  Given a `point` that's inside or outside a given `polygon`, this uses
+  `nearest_edge/2` to find the closest edge and then computes the point on the
+  edge nearest the given `point`.
+
+  ## Params
+  * `polygon`, a list of `{x, y}` vertices, `[{x1, y2}, {x2, y2}, ...]`. This
+    must be non-closed.
+  * `point` a tuple `{x, y}` describing a point
+
+  Returns the `{x, y}` on an edge of the polygon that is nearest `point`.
+  """
   def closest_point_on_edge(polygon, point) do
     # Get the closest segment of the polygon
-    {{x1, y1}, {x2, y2}} =
-      polygon
-      |> Enum.chunk_every(2, 1, Enum.slice(polygon, 0, 2))
-      |> Enum.map(fn [a, b] -> {a, b} end)
-      |> Enum.min_by(&(distance_to_segment(&1, point)))
+    {{x1, y1}, {x2, y2}} = nearest_edge(polygon, point)
 
     {x, y}=point
     u = (((x - x1) * (x2 - x1)) + ((y - y1) * (y2 - y1))) / (((x2 - x1) * (x2 - x1)) + ((y2 - y1) * (y2 - y1)))
@@ -273,7 +325,7 @@ defmodule Geo do
     end
   end
 
-  @doc"""
+  @doc """
   Split polygon into concave and convex vertices.
 
   When doing pathfinding, there will typically be a outer polygon bounding the
@@ -332,7 +384,7 @@ defmodule Geo do
     {Enum.map(concave, fn {p, _} -> p end), Enum.map(convex, fn {p, _} -> p end)}
   end
 
-  @doc"""
+  @doc """
   Determines if a vertex is concave or not.
 
   ## Params
@@ -414,6 +466,12 @@ defmodule Geo do
   @doc """
   The opposite of is_inside?, provided for code readability.
   """
+  def is_outside?(polygon, point, opts \\ [])
+
+  def is_outside?(polygon, _point, _opts) when length(polygon) < 3 do
+    false
+  end
+
   def is_outside?(polygon, point, opts) do
     not is_inside?(polygon, point, opts)
   end

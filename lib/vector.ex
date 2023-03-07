@@ -6,8 +6,8 @@ defmodule Vector do
   module provides basic trigonometry functions.
   """
 
-  @doc"""
-  Get the length of a vector.
+  @doc """
+  Get the length of a vector, aka magnitude.
 
   ## Params
 
@@ -27,7 +27,7 @@ defmodule Vector do
     :math.sqrt(x * x + y * y)
   end
 
-  @doc"""
+  @doc """
   Add two vectors together.
 
   ## Params
@@ -45,7 +45,7 @@ defmodule Vector do
     {ax + bx, ay + by}
   end
 
-  @doc"""
+  @doc """
   Subtract a vector from another.
 
   ## Params
@@ -63,7 +63,7 @@ defmodule Vector do
     {ax - bx, ay - by}
   end
 
-  @doc"""
+  @doc """
   Divide a vector by a constant.
 
   ## Params
@@ -79,7 +79,7 @@ defmodule Vector do
     {x / c, y / c}
   end
 
-  @doc"""
+  @doc """
   Multiply a vector by a constant.
 
   ## Params
@@ -95,7 +95,7 @@ defmodule Vector do
     {x * c, y * c}
   end
 
-  @doc"""
+  @doc """
   Get the distance of two vectors.
 
   The distance is the length of the vector between the ends (second tuple) of the vectors.
@@ -114,10 +114,10 @@ defmodule Vector do
       5.0
   """
   def distance({_ax, _ay}=v1, {_bx, _by}=v2) do
-    len(sub(v2, v1))
+    :math.sqrt(distance_squared(v1, v2))
   end
 
-  @doc"""
+  @doc """
   Get the distance squared of two vectors.
 
   This is equivalent to the square of the `distance`.
@@ -137,7 +137,7 @@ defmodule Vector do
     :math.pow(ax - bx, 2) + :math.pow(ay - by, 2)
   end
 
-  @doc"""
+  @doc """
   Normalise a vector to length 1.
 
   This shortens the vector by it's length, so the resulting vector `w` has
@@ -160,7 +160,7 @@ defmodule Vector do
     {x / l, y / l}
   end
 
-  @doc"""
+  @doc """
   Get the dot product of two vectors.
 
   ## Params
@@ -176,7 +176,7 @@ defmodule Vector do
     ax * bx + ay * by
   end
 
-  @doc"""
+  @doc """
   Get the cross product of two vectors.
 
   ## Params
@@ -192,24 +192,20 @@ defmodule Vector do
     ax * by - ay * bx
   end
 
-  @doc"""
-  Shorten a vector by a certain amount of "points".
-
-  This is fairly willy-nilly, but useful to "shave off a bit".
-  """
-  def shorten({x, y}=v, sz) do
-    s = 1 - sz/len(v)
-    {x * s, y * s}
-  end
-
-  @doc"""
-  Get the magnitude of a vector.
+  @doc """
+  Get the magnitude of a vector, aka len.
 
   This is just another word for `len`.
+
+  ## Examples
+      iex> Vector.mag({1, 1})
+      1.4142135623730951
+      iex> Vector.mag({3, 4})
+      5.0
+      iex> Vector.mag({12, 5})
+      13.0
   """
-  def mag(v) do
-    len(v)
-  end
+  def mag(v), do: len(v)
 
   @doc """
   Get the angle of a vector in radians.
@@ -262,7 +258,7 @@ defmodule Vector do
     :math.atan(-y / -x)
   end
 
-  @doc"""
+  @doc """
   Calls trunc on a vector `v` to make the vector work with wx (requires integers).
 
   ## Params
@@ -279,7 +275,7 @@ defmodule Vector do
     {trunc(x), trunc(y)}
   end
 
-  @doc"""
+  @doc """
   Calls round on a vector `v` to make the vector work with wx (requires integers).
 
   ## Params
