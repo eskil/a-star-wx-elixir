@@ -322,25 +322,20 @@ defmodule AstarWx do
     brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxSOLID}])
     opaque_blue_brush = :wxBrush.new(opaque_blue, [{:style, Wx.wxSOLID}])
 
-    {main, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+    {main, holes} = Scene.classify_polygons(polygons)
 
     :wxDC.setBrush(dc, opaque_blue_brush)
     :wxDC.setPen(dc, blue_pen)
-    for {_name, points} <- main do
-      :ok = :wxDC.drawPolygon(dc, points)
-      for point <- points do
-        WxUtils.wx_crosshair(dc, point, blue)
-      end
+    :ok = :wxDC.drawPolygon(dc, main)
+    for point <- main do
+      WxUtils.wx_crosshair(dc, point, blue)
     end
 
     :wxDC.setBrush(dc, brush)
     :wxDC.setPen(dc, blue_pen)
-    for {_name, points} <- holes do
-      :ok = :wxDC.drawPolygon(dc, points)
-    end
-
-    for {_name, points} <- polygons do
-      for point <- points do
+    for polygon <- holes do
+      :ok = :wxDC.drawPolygon(dc, polygon)
+      for point <- polygon do
         WxUtils.wx_crosshair(dc, point, blue)
       end
     end
