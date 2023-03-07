@@ -39,6 +39,12 @@ defmodule Scene do
     |> Enum.map(&(unclose_walkbox(&1)))
   end
 
+  def classify_polygons(polygons) do
+    {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+    holes = Enum.map(holes, fn {_name, polygon} -> polygon end)
+    {mains[:main], holes}
+  end
+
   def load() do
     path = Application.app_dir(:astarwx)
     # filename = "#{path}/priv/scene1.json"

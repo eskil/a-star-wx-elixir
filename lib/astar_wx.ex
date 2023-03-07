@@ -65,15 +65,25 @@ defmodule AstarWx do
       timer_ref: timer_ref,
       slice: slice,
 
+      # Start point to search from
       start: start,
-      polygons: polygons,
+      # Where the cursor is, also our stop point for saerch
       cursor: nil,
+
+      polygons: polygons,
 
       # This is the list of fixed vertices (from the map) that we will draw
       fixed_walk_vertices: walk_vertices,
+
+      # This is the fixed walk graph (from fixed_walk_vertices) that we'll
+      # outline in red
       fixed_walk_graph: walk_graph,
+
+      # This is the computed path we'll draw in green
       path: [],
 
+      # This is the extended walk graph path we'll draw in orange while the
+      # mouse is being pressed
       click_walk_graph: nil,
     }
     {frame, state}
@@ -202,11 +212,10 @@ defmodule AstarWx do
 
     draw_polygons(dc, state.polygons)
 
-    WxUtils.wx_crosshair(dc, state.start, {0, 255, 0}, size: 6)
     if state.cursor do
       line = {state.start, state.cursor}
       draw_a_b_line(dc, line, state.polygons)
-      draw_cursor(dc, state.cursor, state.polygons)
+      draw_cursors(dc, state.start, state.cursor, state.polygons)
     end
 
     draw_walk_vertices(dc, state)
@@ -284,23 +293,18 @@ defmodule AstarWx do
   ##
   ##
 
-  def draw_cursor(dc, cursor, polygons) do
+  def draw_cursors(dc, start, cursor, polygons) do
     light_gray = {211, 211, 211}
     bright_red = {255, 0, 0}
+    bright_green = {0, 255, 0}
 
     # TODO: this is done a lot, commoditise?
-    {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
+    {main, holes} = Scene.classify_polygons(polygons)
 
-    if Geo.is_inside?(mains[:main], cursor) do
-      # TODO: use Enum.any??
-      is_in_hole = Enum.reduce_while(holes, false, fn {_name, points}, _acc ->
-        if Geo.is_inside?(points, cursor) do
-          {:halt, true}
-        else
-          {:cont, false}
-        end
-      end)
-      if is_in_hole do
+    WxUtils.wx_crosshair(dc, start, bright_green, size: 6)
+
+    if Geo.is_inside?(main, cursor) do
+      if Enum.any?(holes, &(Geo.is_inside?(&1, cursor))) do
         WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)
       else
         WxUtils.wx_crosshair(dc, cursor, bright_red, size: 6)
