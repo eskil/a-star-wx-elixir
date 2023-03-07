@@ -373,8 +373,9 @@ defmodule AstarWx do
     bright_green = {0, 255, 0}
     bright_green_pen = :wxPen.new(bright_green, [{:width,  1}, {:style, Wx.wxSOLID}])
 
-    {main, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
-    if Geo.is_line_of_sight?(main[:main], holes, line) do
+    {main, holes} = Scene.classify_polygons(polygons)
+
+    if Geo.is_line_of_sight?(main, holes, line) do
       :wxDC.setPen(dc, bright_green_pen)
     else
       :wxDC.setPen(dc, light_gray_pen)
@@ -529,16 +530,12 @@ defmodule AstarWx do
   Given a polygon map (main & holes) and list of vertices, makes the graph.
   """
   def create_walk_graph(polygons, vertices) do
-    # TODO: this is done a lot, commoditise?
-    {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
-    main = mains[:main]
+    {main, holes} = Scene.classify_polygons(polygons)
     get_edges(main, holes, vertices, vertices)
   end
 
   def extend_graph(polygons, graph, vertices, points) do
-    # TODO: this is done a lot, commoditise?
-    {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
-    main = mains[:main]
+    {main, holes} = Scene.classify_polygons(polygons)
 
     # To extend the graph `graph` made up up `vertices` with new points
     # `points`, we need to find three sets of edges (sub-graphs). The ones from

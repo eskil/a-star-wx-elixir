@@ -461,8 +461,8 @@ defmodule Geo do
         #   }
         # TODO: use Enum.any?
         rv =
-          Enum.reduce_while([{:main, polygon}] ++ holes, true, fn {name, points}, _acc ->
-            is_line_of_sight_helper(name, points, line, :original)
+          Enum.reduce_while([polygon] ++ holes, true, fn points, _acc ->
+            is_line_of_sight_helper(points, line, :original)
           end)
         if not rv do
           # Logger.debug("\tno LOS")
@@ -474,7 +474,7 @@ defmodule Geo do
           middle = Vector.div(Vector.add(start, stop), 2)
           acc = is_inside?(polygon, middle)
           # TODO: use Enum.any??
-          acc = Enum.reduce(holes, acc, fn {_name, points}, acc ->
+          acc = Enum.reduce(holes, acc, fn points, acc ->
             if is_inside?(points, middle, allow_border: false) do
               false
             else
@@ -488,27 +488,23 @@ defmodule Geo do
     end
   end
 
-  defp is_line_of_sight_helper(_name, points, line, :new) do
+  defp is_line_of_sight_helper(points, line, :new) do
     pointsets = Enum.chunk_every(points, 2, 1, Enum.slice(points, 0, 2))
     if Enum.reduce_while(pointsets, false, fn [a, b]=_polygon_segment, _acc ->
           if lines_intersect({a, b}, line) do
-            # Logger.debug("\t\t\tintersects #{name}")
             {:halt, false}
           else
-            # Logger.debug("\t\t\tno intersects #{name}")
             {:cont, true}
           end
         end)
       do
-      # Logger.debug("\t\t\tintersects #{name}")
       {:cont, true}
       else
-        # Logger.debug("\t\t\tno intersects #{name}")
         {:halt, false}
     end
   end
 
-  defp is_line_of_sight_helper(_name, points, {x, y}=line, :original) do
+  defp is_line_of_sight_helper(points, {x, y}=line, :original) do
     # We get all intersections but remove the ones that are identical to the
     # line. This allows us to enable "allow_points: true", but only see
     # intersections with other lines and _other_ polygon vertices (points).
@@ -521,15 +517,12 @@ defmodule Geo do
       intersections(line, points, allow_points: true)
       |> Enum.map(fn {x, y} -> {round(x), round(y)} end)
       |> Enum.reject(fn p -> p == x or p == y end)
-    # Logger.debug("\t\t\tvs #{name} = #{inspect is}")
 
     if is == [] do
-      # Logger.debug("\t\t\tno intersects #{name}")
       {:cont, true}
     else
       # NOTE: maybe if I apply "is_inside" to intersection points with allow
       # border=false to check?
-      # Logger.debug("\t\t\tintersects #{name}")
       {:halt, false}
     end
   end
