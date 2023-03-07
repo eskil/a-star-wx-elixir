@@ -2,7 +2,7 @@ defmodule AstarPathfind do
   require Logger
 
   def new(graph, start, stop, heur_fun) do
-    # Logger.info("\n\n\n-----------------------------------------\nASTAR")
+    # Logger.info("----------------------------------------- A-star")
     # Logger.info("graph = #{inspect graph, pretty: true}")
     queue = [start]
 
@@ -18,9 +18,9 @@ defmodule AstarPathfind do
       shortest_path_tree: %{},
       frontier: %{},
 
-      # Distance from start to node
+      # node => cost - distance from start to node
       g_cost: %{},
-      # Distance from start to node + heuristic distance to end
+      # vertice => cost, distance from start to vervice + heuristic distance to stop
       f_cost: %{}
     }
   end
@@ -48,9 +48,9 @@ defmodule AstarPathfind do
   end
 
   def search_helper(%{queue: [current|queue]}=state) do
-    # Logger.info("\n\n\n-----------------------------------------\nSEARCH")
+    # Logger.info("----------------------------------------- A-star search")
     # Logger.info("current = #{inspect current, pretty: true}")
-    Logger.info("state = #{inspect Map.delete(state, :graph), pretty: true}")
+    # Logger.info("state = #{inspect Map.delete(state, :graph), pretty: true}")
 
     spt = Map.put(state.shortest_path_tree, current, Map.get(state.frontier, current))
 

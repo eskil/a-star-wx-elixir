@@ -113,35 +113,45 @@ An `edge` is a tuple of `{vertice1, vertice2, cost}`.
 
 ### A-star
 
-An `vertice` is somewhat opaque to the algorithm, it just uses them as
-keys.
+In the context of A-*, we use `node` instead of `vertice` since we're
+describing graphs - not strictly polygons. In the example, each node
+is a polygon vertice (ie. `{x, y}`).
+
+A `node` is somewhat opaque to the algorithm, it just uses them as
+keys and arguments to `heur_fun`. This was written with `node` being
+`{x, y}` tuples (polygon nodex/vector vertexes), but they could also be
+indexes.
 
 By using whatever key the vetices list uses, we keep it simple, and
-whatever manages the vertices can keep the initial list short, yet
+whatever manages the nodes can keep the initial list short, yet
 also uses the keys to manage its own affairs.
 
 The A* algorithm thus receives;
 
-* `graph` to search
+* `graph` to search. The graph should be constructed as
 
 ```elixir
 graph = %{
+  node1 => [
+    node2, cost_fun(node1, node2),
+    node3, cost_fun(node1, node3),
+    node4, cost_fun(node1, node4),
+  ],
+  # When expressed as "node = {x, y}"
   {x1, x2} => [
     {{x2, y2}, cost_fun({x1, y2}, {x2, y2})},
     {{x3, y3}, cost_fun({x1, y2}, {x3, y3})},
     ...
   ],
-  vertice10 => [
-    {vertice11, cost_fun(vertice10, vertice11)},
-    ...
-  ]
   ...
 }
 ```
 
-* `start` and `stop`, the vertices to find a path between.
+* `start` and `stop`, the nodes to find a path between.
 
-* `heur_fun` function `vertice, vertice :: cost` computes heuristic cost. The common case in a 2D polygon map is the straight-line distance.
+* `heur_fun` function `node, node :: cost` computes heuristic
+  cost. The common case in a 2D polygon map is the straight-line
+  distance.
 
 ```elixir
 fn a, b -> Vector.distance(a, b) end
@@ -149,8 +159,28 @@ fn a, b -> Vector.distance(a, b) end
 
 The state it maintains
 
-* `queue` priority queue / list `[vertice, vertice, ...]` sorted on the cost of the path from start to node to stop.
-* `shortest_path_tree`, a map of edges, `vertice => {vertice, cost}`
+* `queue` priority queue / list `[node, node, ...]` sorted on
+  the cost (see `f_cost` below) of the path from `start` to node to
+  `stop`.
+
+* `shortest_path_tree`, a map of edges, `node_a => node_b`,
+  where `node_b` is the "previous" node from `node_a` that is
+  the shortest path.
+
+* `frontier` map of `node => node (prev)` that have been reached
+  and edges yet to try and have been added to the `queue`. It's a map,
+  so when we visit a node, we can add how we reached it to
+  `shortest_path_tree`.
+
+* `g_cost`, map `node => cost` with the minimal current cost from
+  the `start` to `node`. Each iteration compare the current
+  node's `g_cost` against the value in the map. If it's less, we've
+  found a shorter path to this node and update the `g_cost` map.
+
+* `f_cost`, map `node => cost` with the "total cost" of path from
+  `start`, via node, to `stop`. This means the computed minimal
+  cost from `start` to node (`g_cost`) plus the heuristic cost via
+  `heur_fun`. This is used to reorder `queue`.
 
 
 ## Todo
