@@ -97,7 +97,7 @@ The polygon name is only used when detecting if the destination for
 pathfinding is within a hole. The name is just printed. Besides that
 they're not used and mostly discarded.
 
-## Graph
+### Graph
 
 The graph is a map from `vertice` to a list of `{vertice, cost}`. This
 is computed from the polygon map using a set of vertice. This set is

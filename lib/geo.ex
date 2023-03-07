@@ -5,15 +5,10 @@ defmodule Geo do
   This provides functions for;
 
   * line of sight between two points
-
   * classify polygon vertices as concave or vertex
-
   * intersections of lines and polygons
-
   * checking if points are inside/outside polygons
-
   * finding nearest point on a polygon and distances
-
   """
   require Logger
 
@@ -26,9 +21,7 @@ defmodule Geo do
   will be a better choice.
 
   ## Params
-
   * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
-
   * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
 
   Returns `true` or `false` wether the line intersects the polygon or not.
@@ -46,14 +39,10 @@ defmodule Geo do
   the list of intersection points.
 
   ## Params
-
   * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
-
   * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a
     polygon. This must be non-closed.
-
   * `opts`
-
     * `:allow_points` (default `false`) whether a `on_point` intersection
       should be considered an intersection or not. This varies from use
       cases. Eg. when building a polygon, points will be connected and thus
@@ -93,11 +82,9 @@ defmodule Geo do
   The "opposite" of `last_intersection/2`.
 
   ## Params
-
   * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line. The
     first tuple (`{ax, ay}`) is considered the head of the line and "first" in
     this context means nearest to that point.
-
   * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
 
   Returns a `{x, y}` tuples indicating where the line first intersects, or `nil`
@@ -117,11 +104,9 @@ defmodule Geo do
   The "opposite" of `first_intersection/2`.
 
   ## Params
-
   * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line. The
      second tuple (`{bx, by}`) is considered the end of the line and "last" in
      this context means nearest to that point.
-
   * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
 
   Returns a `{x, y}` tuples indicating where the line last intersects, or nil
@@ -166,21 +151,15 @@ defmodule Geo do
 
   ## Params
   * `line1` a `{{x1, y1}, {x2, y2}}` line segment
-
   * `line2` a `{{x3, y13, {x4, y4}}` line segment
 
   Returns
-
   * `:on_segment` if one line is on the other
-
   * `:parallel` if the lines are parallel and do not intersect
-
   * `{:point_intersection, {x, y}}` if either line has an endpoint (`{x, y}`)
     on the other line
-
   * `{:intersection, {x, y}}` if either line has an endpoint (`{x, y}`) on the
     other line.
-
   * `:none` no intersection.
 
   ## Examples
@@ -273,7 +252,6 @@ defmodule Geo do
 
   ## Params
   * `line1` a `{{x1, y1}, {x2, y2}}` line segment
-
   * `line2` a `{{x3, y13, {x4, y4}}` line segment
 
   Returns `true` if they intersect anywhere (at ends too), `false` otherwise.
@@ -304,9 +282,10 @@ defmodule Geo do
 
   Classifying the polygons into concave and convex gives the walkable graph.
 
-  The outer polygon's concave (pointing into the world) vertices should be used.
-
-  The holes' convex (point out of the hole, into the world) vertices should be used.
+  * The outer polygon's concave (pointing into the world) vertices should be
+    used.
+  * The holes' convex (point out of the hole, into the world) vertices should
+    be used.
 
   In code, this looks like
 
@@ -388,13 +367,6 @@ defmodule Geo do
     Vector.cross(left, right) < 0
   end
 
-  @doc """
-  The opposite of is_inside?
-  """
-  def is_outside?(polygon, point, opts) do
-    not is_inside?(polygon, point, opts)
-  end
-
   # Alternate, https://sourceforge.net/p/polyclipping/code/HEAD/tree/trunk/cpp/clipper.cpp#l438
   @doc """
   Check if a point is inside a polygon or not.
@@ -440,19 +412,25 @@ defmodule Geo do
   end
 
   @doc """
+  The opposite of is_inside?, provided for code readability.
+  """
+  def is_outside?(polygon, point, opts) do
+    not is_inside?(polygon, point, opts)
+  end
+
+  @doc """
   Checks if there's a line-of-sight from `start` to `stop` within the map.
 
   ## Params
-
   * `polygon`, a list of `{x, y}` vertices. This is the main boundary map.
-
   * `holes`, a list of lists of `{x, y}` vertices. These are holes within
     `polygon`.
-
   * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
 
-  Returns ...
+  Returns `true` if there's a line-of-sight and none of the main polygon or
+  holes obstruct the path. `false` otherwise.
 
+  If either `start` or `stop` is outside `polygon`, the result will be false.
   """
   def is_line_of_sight?(polygon, holes, line) do
     {start, stop} = line
@@ -465,7 +443,7 @@ defmodule Geo do
         # TODO: use Enum.any?
         rv =
           Enum.reduce_while([polygon] ++ holes, true, fn points, _acc ->
-            is_line_of_sight_helper(points, line, :original)
+            is_line_of_sight_helper(points, line)
           end)
         if not rv do
           rv
@@ -486,24 +464,8 @@ defmodule Geo do
     end
   end
 
-  defp is_line_of_sight_helper(points, line, :new) do
-    pointsets = Enum.chunk_every(points, 2, 1, Enum.slice(points, 0, 2))
-    if Enum.reduce_while(pointsets, false, fn [a, b]=_polygon_segment, _acc ->
-          if lines_intersect({a, b}, line) do
-            {:halt, false}
-          else
-            {:cont, true}
-          end
-        end)
-      do
-      {:cont, true}
-      else
-        {:halt, false}
-    end
-  end
-
-  defp is_line_of_sight_helper(points, {x, y}=line, :original) do
-    # We get all intersections but remove the ones that are identical to the
+  defp is_line_of_sight_helper(points, {x, y}=line) do
+    # We get all intersections and reject the ones that are identical to the
     # line. This allows us to enable "allow_points: true", but only see
     # intersections with other lines and _other_ polygon vertices (points).
     # This is necessary since we're always calling this with a line between two
