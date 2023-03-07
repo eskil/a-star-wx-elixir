@@ -5,7 +5,6 @@ defmodule AstarPathfind do
     # Logger.info("----------------------------------------- A-star")
     # Logger.info("graph = #{inspect graph, pretty: true}")
     queue = [start]
-
     %{
       start: start,
       stop: stop,
@@ -23,33 +22,23 @@ defmodule AstarPathfind do
       # vertice => cost, distance from start to vervice + heuristic distance to stop
       f_cost: %{}
     }
-    |> search_timed
-    |> get_path
+    |> search_helper
   end
 
-  def sort_queue(queue, f_cost) do
+  defp sort_queue(queue, f_cost) do
     Enum.sort_by(queue, fn e -> Map.get(f_cost, e) end, :asc)
   end
 
-  def add_to_queue(queue, node) do
+  defp add_to_queue(queue, node) do
     Enum.sort(queue ++ [node])
     |> Enum.dedup
   end
 
-  def search_timed(state) do
-    start_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
-    state = search_helper(state)
-    end_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
-    elapsed_us = trunc(end_us - start_us)
-    Logger.info("A-star search took #{elapsed_us}µs")
+  defp search_helper(%{queue: []}=state) do
     state
   end
 
-  def search_helper(%{queue: []}=state) do
-    state
-  end
-
-  def search_helper(%{queue: [current|queue]}=state) do
+  defp search_helper(%{queue: [current|queue]}=state) do
     # Logger.info("----------------------------------------- A-star search")
     # Logger.info("current = #{inspect current, pretty: true}")
     # Logger.info("state = #{inspect Map.delete(state, :graph), pretty: true}")
@@ -57,9 +46,10 @@ defmodule AstarPathfind do
     spt = Map.put(state.shortest_path_tree, current, Map.get(state.frontier, current))
 
     cond do
-      current == state.stop ->
-        # Logger.info("stop, spt = #{inspect spt, pretty: true}")
-        %{state | shortest_path_tree: spt}
+      # This should be an option - terminate when we've found _a_ path to the end.
+      # current == state.stop ->
+      #   # Logger.info("stop, spt = #{inspect spt, pretty: true}")
+      #   %{state | shortest_path_tree: spt}
       true ->
         edges = Map.get(state.graph, current, [])
 
@@ -123,15 +113,15 @@ defmodule AstarPathfind do
     |> Enum.reverse
   end
 
-  def get_path(_state, _start, nil, acc) do
+  defp get_path(_state, _start, nil, acc) do
     acc
   end
 
-  def get_path(_state, start, start, acc) do
+  defp get_path(_state, start, start, acc) do
     acc ++ [start]
   end
 
-  def get_path(state, start, node, acc) do
+  defp get_path(state, start, node, acc) do
     next = state.shortest_path_tree[node]
     get_path(state, start, next, acc ++ [node])
   end

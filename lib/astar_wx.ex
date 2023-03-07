@@ -449,13 +449,39 @@ defmodule AstarWx do
     :wxPen.destroy(bright_green_pen)
   end
 
+  def usec_to_str(usec) when usec < 1_000 do
+    "#{usec}µs"
+  end
+
+  def usec_to_str(usec) when usec < 1_000_000 do
+    "#{usec/1_000}ms"
+  end
+
+  def usec_to_str(usec)  do
+    "#{usec/1_000_000}s"
+  end
+
   def get_updated_graph_vertices_path(polygons, vertices, graph, start, stop) do
     line = {start, stop}
     np = find_nearest_point(polygons, line)
 
-    {new_graph, new_vertices} = extend_graph(polygons, graph, vertices, [start, np])
+    {graph_usec, {new_graph, new_vertices}} = :timer.tc(fn -> extend_graph(polygons, graph, vertices, [start, np]) end)
 
-    path = AstarPathfind.search(new_graph, start, np, fn a, b -> Vector.distance(a, b) end)
+    {astar_usec, path} = :timer.tc(fn ->
+      astar = AstarPathfind.search(new_graph, start, np, fn a, b -> Vector.distance(a, b) end)
+      AstarPathfind.get_path(astar)
+    end)
+
+    # Curtesy compute and print distance.
+    distance =
+      path
+      |> Enum.chunk_every(2, 1)
+      |> Enum.reduce(0, fn
+        [a, b], acc -> acc + Vector.distance(a, b)
+        _, acc -> acc
+      end)
+    Logger.info("graph extend = #{usec_to_str(graph_usec)} a-star=#{usec_to_str(astar_usec)} distance = #{distance}")
+
     {new_graph, new_vertices, path}
   end
 
@@ -505,26 +531,13 @@ defmodule AstarWx do
   Given a polygon map (main & holes) and list of vertices, makes the graph.
   """
   def create_walk_graph(polygons, vertices) do
-    start_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
     # TODO: this is done a lot, commoditise?
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
     main = mains[:main]
-
-    result = get_edges(main, holes, vertices, vertices)
-
-    end_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
-    elapsed_us = trunc(end_us - start_us)
-    cond do
-      elapsed_us > 1000 ->
-        Logger.info("Graph gen took #{elapsed_us/1000}ms")
-      true ->
-        Logger.info("Graph gen took #{elapsed_us}µs")
-    end
-    result
+    get_edges(main, holes, vertices, vertices)
   end
 
   def extend_graph(polygons, graph, vertices, points) do
-    start_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
     # TODO: this is done a lot, commoditise?
     {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
     main = mains[:main]
@@ -552,17 +565,7 @@ defmodule AstarWx do
       |> Map.merge(set_b, merge_fun)
       |> Map.merge(set_c, merge_fun)
 
-    result = {graph, vertices ++ points}
-
-    end_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
-    elapsed_us = trunc(end_us - start_us)
-    cond do
-      elapsed_us > 1000 ->
-        Logger.info("Extend graph took #{elapsed_us/1000}ms")
-      true ->
-        Logger.info("Extend graph took #{elapsed_us}µs")
-    end
-    result
+    {graph, vertices ++ points}
   end
 
   @doc """

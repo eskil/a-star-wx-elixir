@@ -208,8 +208,10 @@ The state it maintains
   cost from `start` to node (`g_cost`) plus the heuristic cost via
   `heur_fun`. This is used to reorder `queue`.
 
-
-The A-star algorithm is
+Within `astar.ex`, there's two steps; search & getting the
+path. `search` returns the full state, and `get_path` could be
+extended to return the cost along the path if needed. It can fetch
+this from `g_cost.`
 
 ## Todo
 
