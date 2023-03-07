@@ -242,15 +242,15 @@ defmodule AstarWx do
 
   @impl true
   def handle_info(:tick, state) do
-    start_ms = System.convert_time_unit(System.monotonic_time, :native, :millisecond)
-
-    new_state = update(state)
-    render(new_state)
-
-    end_ms = System.convert_time_unit(System.monotonic_time, :native, :millisecond)
-    elapsed = trunc(end_ms - start_ms)
-    pause = max(0, state[:slice] - elapsed)
-
+    # This is called at the configured frame rate, and updates state (nothing
+    # in this example), rerenders the screen and schedules the timer for next
+    # frame.
+    {elapsed_usec, {:ok, new_state}} = :timer.tc(fn ->
+      new_state = update(state)
+      :ok = render(new_state)
+      {:ok, new_state}
+    end)
+    pause = max(0, state[:slice] - trunc(elapsed_usec / 1_000))
     timer_ref = Process.send_after(self(), :tick, pause)
     {:noreply, %{new_state | timer_ref: timer_ref}}
   end
@@ -290,7 +290,7 @@ defmodule AstarWx do
   end
 
   ##
-  ##
+  ## Render helper funtions
   ##
 
   def draw_cursors(dc, start, cursor, polygons) do
@@ -298,7 +298,6 @@ defmodule AstarWx do
     bright_red = {255, 0, 0}
     bright_green = {0, 255, 0}
 
-    # TODO: this is done a lot, commoditise?
     {main, holes} = Scene.classify_polygons(polygons)
 
     WxUtils.wx_crosshair(dc, start, bright_green, size: 6)
