@@ -491,13 +491,10 @@ defmodule AstarWx do
   the holes.
   """
   def get_walk_vertices(polygons) do
-    # TODO: this is done a lot, commoditise? Or ditch the "named" polygon concept.
-    {mains, holes} = Enum.split_with(polygons, fn {name, _} -> name == :main end)
-    main = mains[:main]
-
+    {main, holes} = Scene.classify_polygons(polygons)
     {concave, _convex} = Geo.classify_vertices(main)
 
-    convex = Enum.reduce(holes, [], fn {_name, points}, acc ->
+    convex = Enum.reduce(holes, [], fn points, acc ->
       {_, convex} = Geo.classify_vertices(points)
       acc ++ convex
     end)

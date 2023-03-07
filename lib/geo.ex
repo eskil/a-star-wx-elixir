@@ -312,7 +312,7 @@ defmodule Geo do
   ```
   {concave, _convex} = Geo.classify_vertices(world)
 
-  convex = Enum.reduce(holes, [], fn {_name, points}, acc ->
+  convex = Enum.reduce(holes, [], fn points, acc ->
     {_, convex} = Geo.classify_vertices(points)
     acc ++ convex
   end)
@@ -325,6 +325,10 @@ defmodule Geo do
 
   Returns `{list of concave vertices, list of convex}`.
 
+  Three points that fall on the same line (`[{0, 0}, {1, 0}, {2, 0}]`) does not
+  match neither the concave/convex definition (angle gt/lt 180 degrees), see
+  `is_concave?/2.`
+
   ## Examples
       # A vaguely M shaped polygon
       iex> Geo.classify_vertices([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}])
@@ -332,7 +336,7 @@ defmodule Geo do
   """
   def classify_vertices(polygon) do
     # We prepend the last vertex (-1) to the list and chunk into threes. That
-    # way we have a list of triples that describe each {prev, current, next}
+    # way we have a list of triples {prev, current, next} that describe each
     # vertex set. We apply the logic to determine if it's concave. Finally
     # split by concave and filter out the boolean.
     {concave, convex} =
@@ -356,6 +360,21 @@ defmodule Geo do
   * `at`, a position within `polygon` to check.
 
   Return `true` or `false`.
+
+  Three points that fall on the same line (`[{0, 0}, {1, 0}, {2, 0}]`) does not
+  match neither the concave/convex definition (angle gt/lt 180 degrees). This
+  will return false for such a vertex.
+
+  ## Examples
+      # A vaguely M shaped polygon
+      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 1)
+      false
+      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 2)
+      false
+      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 3)
+      false
+      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 4)
+      true
   """
   # See https://www.david-gouveia.com/pathfinding-on-a-2d-polygonal-map
   def is_concave?(polygon, at) do
@@ -396,7 +415,6 @@ defmodule Geo do
       fn current, {prev, prev_sq_dist, inside} ->
         sq_dist = Vector.distance_squared(current, point)
         if (prev_sq_dist + sq_dist + 2.0 * :math.sqrt(prev_sq_dist * sq_dist) - Vector.distance_squared(current, prev) < epsilon) do
-          # "return toleranceOnOutside"
           allow = Keyword.get(opts, :allow_border, true)
           {:halt, {prev, prev_sq_dist, allow}}
         else
@@ -436,41 +454,21 @@ defmodule Geo do
 
   """
   def is_line_of_sight?(polygon, holes, line) do
-    #   bool InLineOfSight(Polygon polygon, Vector2 start, Vector2 end)
-    # {
-    #   // Not in LOS if any of the ends is outside the polygon
-    #   if (!polygon.Inside(start) || !polygon.Inside(end)) return false;
     {start, stop} = line
-    # Logger.debug("is_line_of_sight? #{inspect line}")
     if not is_inside?(polygon, start) or not is_inside?(polygon, stop) do
-      # Logger.debug("\toutside #{is_inside?(polygon, start)} #{is_inside?(polygon, stop)}")
       false
     else
-      #   // In LOS if it's the same start and end location
-      #   if (Vector2.Distance(start, end) < epsilon) return true;
       if Vector.distance(start, stop) < 0.5 do
-        # Logger.debug("\tnear, yes")
         true
       else
-        #   // Not in LOS if any edge is intersected by the start-end line segment
-        #   foreach (var vertices in polygon) {
-        #     var n = vertices.Count;
-        #     for (int i = 0; j < n; i++)
-        #       if (LineSegmentsCross(start, end, vertices[i], vertices[(i+1)%n]))
-        #         return false;
-        #   }
         # TODO: use Enum.any?
         rv =
           Enum.reduce_while([polygon] ++ holes, true, fn points, _acc ->
             is_line_of_sight_helper(points, line, :original)
           end)
         if not rv do
-          # Logger.debug("\tno LOS")
           rv
         else
-          #   // Finally the middle point in the segment determines if in LOS or not
-          #   return polygon.Inside((start + end) / 2f);
-          # }
           middle = Vector.div(Vector.add(start, stop), 2)
           acc = is_inside?(polygon, middle)
           # TODO: use Enum.any??
@@ -481,7 +479,6 @@ defmodule Geo do
               acc
             end
           end)
-          # Logger.debug("\t#{acc} by half #{inspect middle}")
           acc
         end
       end
