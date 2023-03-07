@@ -448,15 +448,16 @@ defmodule AstarWx do
     :wxPen.destroy(bright_green_pen)
   end
 
-  def usec_to_str(usec) when usec < 1_000 do
+  # Convert time in microseconds to "pretty" time.
+  defp usec_to_str(usec) when usec < 1_000 do
     "#{usec}µs"
   end
 
-  def usec_to_str(usec) when usec < 1_000_000 do
+  defp usec_to_str(usec) when usec < 1_000_000 do
     "#{usec/1_000}ms"
   end
 
-  def usec_to_str(usec)  do
+  defp usec_to_str(usec)  do
     "#{usec/1_000_000}s"
   end
 
@@ -530,6 +531,27 @@ defmodule AstarWx do
     {main, holes} = Scene.classify_polygons(polygons)
     get_edges(main, holes, vertices, vertices)
   end
+
+  @doc """
+
+  Given a polygon map (main & holes), list of vertices and the initial graph,
+  extend the graph with extra `points`.
+
+  This is used to "temporarily" expand the fixed walk graph with the start and
+  end-point. This is a performance optimisation that saves work by reusing the
+  fixed nodes and extend it with the moveable points.
+
+  ## Params
+
+  * `polygons`, a `%{main: [...], hole: [...], hole2: [...]}` polygon map.
+
+  * `graph`, the fixed graph, eg. created via `create_walk_graph/2`.
+
+  * `vertices` the nodes used to create `graph`.
+
+  * `points` a list of coordinates, `[{x, y}, {x, y}...]`, to extend
+
+  """
 
   def extend_graph(polygons, graph, vertices, points) do
     {main, holes} = Scene.classify_polygons(polygons)

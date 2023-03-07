@@ -182,40 +182,41 @@ defmodule Geo do
     other line.
 
   * `:none` no intersection.
+
+  ## Examples
+      iex> Geo.line_segment_intersection({{1, 2}, {4, 2}}, {{2, 0}, {3, 0}})
+      :parallel
+      iex> Geo.line_segment_intersection({{1, 2}, {4, 2}}, {{2, 2}, {3, 2}})
+      :on_segment
+      iex> Geo.line_segment_intersection({{1, 2}, {4, 2}}, {{2, 0}, {2, 1}})
+      :none
+      iex> Geo.line_segment_intersection({{1, 2}, {4, 2}}, {{2, 0}, {2, 2}})
+      {:point_intersection, {2.0, 2.0}}
+      iex> Geo.line_segment_intersection({{1, 2}, {4, 2}}, {{2, 0}, {2, 3}})
+      {:intersection, {2.0, 2.0}}
   """
   def line_segment_intersection(line1, line2) do
-    # Logger.debug("\tintersection #{inspect line1} with #{inspect line2}")
     {{ax1, ay1}, {ax2, ay2}} = line1
     {{bx1, by1}, {bx2, by2}} = line2
     den = (by2 - by1) * (ax2 - ax1) - (bx2 - bx1) * (ay2 - ay1)
 
     if den == 0 do
       if (by1 - ay1) * (ax2 - ax1) == (bx1 - ax1) * (ay2 - ay1) do
-        # Logger.debug("\t\ton onsegment")
         :on_segment
       else
-        # Logger.debug("\t\tparallel")
         :parallel
       end
     else
       ua = ((bx2 - bx1) * (ay1 - by1) - (by2 - by1) * (ax1 - bx1)) / den
       ub = ((ax2 - ax1) * (ay1 - by1) - (ay2 - ay1) * (ax1 - bx1)) / den
-      # Logger.debug("\t\tua #{ua}")
-      # Logger.debug("\t\tub #{ub}")
-      # The "and not (ua == 0.0 or ub == 0.0)" part ensures no intersection on points
       if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 do
-      # if ua >= 0.0 and ua <= 1.0 and ub >= 0.0 and ub <= 1.0 and not (ua == 0.0 or ub == 0.0) do
-      # if ua > 0.0 and ua < 1.0 and ub > 0.0 and ub < 1.0 and not (ua == 0.0 or ub == 0.0) do
         {x, y} = {ax1 + ua * (ax2 - ax1), ay1 + ua * (ay2 - ay1)}
         if ua == 0.0 or ub == 1.0 or ua == 1.0 or ub == 0.0 do
-          # Logger.debug("\t\tpoint intersection at #{inspect {x, y}}")
           {:point_intersection, {x, y}}
         else
-          # Logger.debug("\t\tintersection at #{inspect {x, y}}")
           {:intersection, {x, y}}
         end
       else
-        # Logger.debug("\t\tnone")
         :none
       end
     end

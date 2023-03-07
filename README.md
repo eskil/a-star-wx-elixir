@@ -4,6 +4,13 @@ A graphical demo of
 [A-star 2d polygon map search](https://en.wikipedia.org/wiki/A*_search_algorithm)
 in Elixir using WxWidgets.
 
+The "world" is made up of a primary polygon. It has holes defined by
+smaller polygons inside it. These are impassable. A-star finds the shortest path around these.
+
+![animated gif showing demo](/images/a-star-sample.gif?raw=true "A-star demo")
+
+A common use case for this is in games where actors have to move around a screen/map.
+
 ## How to run
 
 Assuming you have
@@ -17,10 +24,6 @@ mix run --no-halt
 ```
 ## How to run
 
-The "world" is made up of a primary polygon. Inside of this there are
-smaller polygons that make up holes. These are impassable.
-
-![animated gif showing demo](/images/a-star-sample.gif?raw=true "A-star demo")
 
 * The start point is a *green crosshair*.
 * The cursor position is a *red crosshair* if inside the main polution, *gray* if outside.
@@ -89,6 +92,10 @@ Subsequent polygons (not named `main`) are holes within it.
 Polygons don't need to be closed (last `[x, y]` equals the first),
 this will be handled internally. The rendered polygons will be closed,
 and datastructures will operate on open/closed as necessary.
+
+The polygon name is only used when detecting if the destination for
+pathfinding is within a hole. The name is just printed. Besides that
+they're not used and mostly discarded.
 
 ## Graph
 
@@ -217,7 +224,6 @@ this from `g_cost.`
 
 - [ ] Move a lot of the "hackityhacks" from `astar_wx.ex` to geo.ex.
 - [ ] Align on a single `polygon, point` argument order
-- [ ] The polygon "name" thing needs to be addressed - it def must not be in geo.ex
 - [ ] vector naming, `start, stop`, `src, dst`
 - [ ] Little to no error check of polygon overlap, self-intersection, holes cutting the primary etc.
 
