@@ -1,7 +1,7 @@
 defmodule AstarPathfind do
   require Logger
 
-  def new(graph, start, stop, heur_fun) do
+  def search(graph, start, stop, heur_fun) do
     # Logger.info("----------------------------------------- A-star")
     # Logger.info("graph = #{inspect graph, pretty: true}")
     queue = [start]
@@ -23,6 +23,7 @@ defmodule AstarPathfind do
       # vertice => cost, distance from start to vervice + heuristic distance to stop
       f_cost: %{}
     }
+    |> search_timed
   end
 
   def sort_queue(queue, f_cost) do
@@ -34,7 +35,7 @@ defmodule AstarPathfind do
     |> Enum.dedup
   end
 
-  def search(state) do
+  def search_timed(state) do
     start_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)
     state = search_helper(state)
     end_us = System.convert_time_unit(System.monotonic_time, :native, :microsecond)

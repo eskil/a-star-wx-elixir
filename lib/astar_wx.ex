@@ -455,8 +455,7 @@ defmodule AstarWx do
 
     {new_graph, new_vertices} = extend_graph(polygons, graph, vertices, [start, np])
 
-    astar_state = AstarPathfind.new(new_graph, start, np, fn a, b -> Vector.distance(a, b) end)
-    astar_state = AstarPathfind.search(astar_state)
+    astar_state = AstarPathfind.search(new_graph, start, np, fn a, b -> Vector.distance(a, b) end)
     path = AstarPathfind.get_path(astar_state, np)
     {new_graph, new_vertices, path}
   end
@@ -624,7 +623,8 @@ defmodule AstarWx do
   def find_nearest_stop_point(points, line) do
     {_start, stop} = line
     {x, y} = Geo.closest_point_on_edge(points, stop)
-    # TODO: this is problematic area - we want to round towards the start of
+
+    # This is problematic area - we want to round towards the start of
     # the line Eg. in complex.json scene, clicking {62, 310} yields {64.4,
     # 308.8}, which naive rounding makes {64, 309}. This however places us
     # *inside* the hole.
