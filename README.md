@@ -69,13 +69,13 @@ The map is loaded from a json file, and looks like
 {
   "polygons": [
     "main": [
-      [x, y], [x, y], [x,y]...
+      [x, y], [x, y], [x,y], ...
     ],
     "hole1": [
-      [x, y], [x, y], [x,y]...
+      [x, y], [x, y], [x,y], ...
     ],
     "hole2": [
-      [x, y], [x, y], [x,y]...
+      [x, y], [x, y], [x,y], ...
     ]
   ]
 }
@@ -104,12 +104,38 @@ composed of;
 vertices = [{x1, y1}=vertice1, {x2, y2}=vertice2, {x3, y3}=vertice3...]
 ```
 
-And this is transformed to a graph, where each entry is used as a key
-to a list of keys for other vertices. This transformation is not relevant
-to the A* algorithm, but the result is the input;
+This is transformed to a graph, where each entry is used as a key to a
+list of keys to other vertices and their cost. This transformation is
+not strictly relevant to the A* algorithm, but the result is the
+input.
 
+Assuming a `cost_fun` that has type `vertice, vertice :: cost`, the graph looks like;
+
+```elixir
+graph = %{
+  vertice1 => [
+    vertice2, cost_fun(vertice1, vertice2),
+    vertice3, cost_fun(vertice1, vertice3),
+    vertice4, cost_fun(vertice1, vertice4),
+  ],
+  # When expressed as "vertice = {x, y}"
+  {x1, x2} => [
+    {{x2, y2}, cost_fun({x1, y2}, {x2, y2})},
+    {{x3, y3}, cost_fun({x1, y2}, {x3, y3})},
+    ...
+  ],
+  ...
+}
+```
+
+The `cost_fun` in this is the euclidean distance been the two points.
+
+```elixir
+cost_fun = fn a, b -> Vector.distance(a, b) end
+```
 
 An `edge` is a tuple of `{vertice1, vertice2, cost}`.
+
 
 ### A-star
 
@@ -192,3 +218,14 @@ The A-star algorithm is
 - [ ] The polygon "name" thing needs to be addressed - it def must not be in geo.ex
 - [ ] vector naming, `start, stop`, `src, dst`
 - [ ] Little to no error check of polygon overlap, self-intersection, holes cutting the primary etc.
+
+## Resources
+
+This was put together using a lot of online resources and resources they link to.
+
+* [Grobelsloot](https://github.com/MicUurloon/AdventurePathfinding/tree/master) a-* in haxe.
+* [Visionaire](https://wiki.visionaire-tracker.net/wiki/Scenes_and_Objects) description and images
+* [David G](https://www.david-gouveia.com/pathfinding-on-a-2d-polygonal-map) Pathfinding on a 2D Polygonal Map
+* [Clipper](https://sourceforge.net/p/polyclipping/code/HEAD/tree/trunk/cpp/clipper.hpp) C++ geometry library
+* [Kyryl K](https://khorbushko.github.io/article/2021/07/15/the-area-polygon-or-how-to-detect-line-segments-intersection.html) The smart polygon or how to detect line segments intersection
+* [SO How do you detect where two line segments intersect?](https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect) SO that explains "ua=0" and "ub=1"...

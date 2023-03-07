@@ -24,6 +24,7 @@ defmodule AstarPathfind do
       f_cost: %{}
     }
     |> search_timed
+    |> get_path
   end
 
   def sort_queue(queue, f_cost) do
