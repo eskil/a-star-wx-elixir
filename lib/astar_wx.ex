@@ -456,7 +456,7 @@ defmodule AstarWx do
     {new_graph, new_vertices} = extend_graph(polygons, graph, vertices, [start, np])
 
     astar_state = AstarPathfind.search(new_graph, start, np, fn a, b -> Vector.distance(a, b) end)
-    path = AstarPathfind.get_path(astar_state, np)
+    path = AstarPathfind.get_path(astar_state)
     {new_graph, new_vertices, path}
   end
 

@@ -116,9 +116,9 @@ defmodule AstarPathfind do
     end
   end
 
-  def get_path(state, stop) do
-    next = state.shortest_path_tree[stop]
-    get_path(state, state.start, next, [stop])
+  def get_path(state) do
+    next = state.shortest_path_tree[state.stop]
+    get_path(state, state.start, next, [state.stop])
     |> Enum.reverse
   end
 
