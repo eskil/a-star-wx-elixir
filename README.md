@@ -1,7 +1,7 @@
 # AstarWx
 
 A graphical demo of
-[A-* 2d polygon map search](https://en.wikipedia.org/wiki/A*_search_algorithm)
+[A-star 2d polygon map search](https://en.wikipedia.org/wiki/A*_search_algorithm)
 in Elixir using WxWidgets.
 
 ## How to run
@@ -20,7 +20,7 @@ mix run --no-halt
 The "world" is made up of a primary polygon. Inside of this there are
 smaller polygons that make up holes. These are impassable.
 
-[[/images/a-star-sample.gif|animated gif showing demo]]
+![animated gif showing demo](/images/a-star-sample.gif?raw=true "A-star demo")
 
 * The start point is a *green crosshair*.
 * The cursor position is a *red crosshair* if inside the main polution, *gray* if outside.
@@ -113,7 +113,7 @@ An `edge` is a tuple of `{vertice1, vertice2, cost}`.
 
 ### A-star
 
-In the context of A-*, we use `node` instead of `vertice` since we're
+In the context of A-star, we use `node` instead of `vertice` since we're
 describing graphs - not strictly polygons. In the example, each node
 is a polygon vertice (ie. `{x, y}`).
 
@@ -182,6 +182,8 @@ The state it maintains
   cost from `start` to node (`g_cost`) plus the heuristic cost via
   `heur_fun`. This is used to reorder `queue`.
 
+
+The A-star algorithm is
 
 ## Todo
 
