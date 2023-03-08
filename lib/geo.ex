@@ -364,6 +364,7 @@ defmodule Geo do
       iex> Geo.classify_vertex([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 2)
       :concave
   """
+  # See https://www.david-gouveia.com/pathfinding-on-a-2d-polygonal-map
   def classify_vertex(polygon, at) do
     next = Enum.at(polygon, rem(at+1, length(polygon)))
     current = Enum.at(polygon, at)
@@ -408,15 +409,8 @@ defmodule Geo do
       iex> Geo.is_concave?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 5)
       false
   """
-  # See https://www.david-gouveia.com/pathfinding-on-a-2d-polygonal-map
   def is_concave?(polygon, at) do
-    next = Enum.at(polygon, rem(at+1, length(polygon)))
-    current = Enum.at(polygon, at)
-    prev = Enum.at(polygon, at-1)
-
-    left = Vector.sub(current, prev)
-    right = Vector.sub(next, current)
-    Vector.cross(left, right) > 0
+    classify_vertex(polygon, at) == :concave
   end
 
   @doc """
@@ -447,15 +441,8 @@ defmodule Geo do
       iex> Geo.is_convex?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 5)
       false
   """
-  # See https://www.david-gouveia.com/pathfinding-on-a-2d-polygonal-map
   def is_convex?(polygon, at) do
-    next = Enum.at(polygon, rem(at+1, length(polygon)))
-    current = Enum.at(polygon, at)
-    prev = Enum.at(polygon, at-1)
-
-    left = Vector.sub(current, prev)
-    right = Vector.sub(next, current)
-    Vector.cross(left, right) < 0
+    classify_vertex(polygon, at) == :convex
   end
 
   # Alternate, https://sourceforge.net/p/polyclipping/code/HEAD/tree/trunk/cpp/clipper.cpp#l438
