@@ -618,7 +618,7 @@ defmodule Geo do
     `polygon`.
   * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
 
-  The function will return a new point for b such that;
+  The function will return a new point `{bx, by}` for b such that;
 
   * if `{bx, by}` is outside the main map, the new b is the closest point on
     the main map.

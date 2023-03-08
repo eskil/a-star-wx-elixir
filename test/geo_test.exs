@@ -339,8 +339,53 @@ defmodule GeoTest do
   test "nearest_point_on_edge" do
     # Box
     polygon = [{0, 0}, {2, 0}, {2, 2}, {0, 2}]
+    # Walk around a few edges
     assert Geo.nearest_point_on_edge(polygon, {-1, 1}) == {0, 1}
     assert Geo.nearest_point_on_edge(polygon, {1, 2.5}) == {1, 2}
     assert Geo.nearest_point_on_edge(polygon, {3, 1}) == {2, 1}
+  end
+
+  ##
+  ## Get.nearest_point
+  ##
+
+  test "nearest_point no change needed" do
+    # M shape
+    polygon = [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]
+    holes = [
+      [{5, 7}, {7, 7}, {7, 5}, {5, 5}],
+      [{15, 7}, {17, 7}, {17, 5}, {15, 5}],
+    ]
+    assert Geo.nearest_point(polygon, holes, {{1, 1}, {2, 1}}) == {2, 1}
+  end
+
+  test "nearest_point stop outside boundary" do
+    # M shape
+    polygon = [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]
+    holes = [
+      [{5, 7}, {7, 7}, {7, 5}, {5, 5}],
+      [{15, 7}, {17, 7}, {17, 5}, {15, 5}],
+    ]
+    assert Geo.nearest_point(polygon, holes, {{1, 1}, {-1, 1}}) == {0, 1}
+  end
+
+  test "nearest_point stop in hole" do
+    # M shape
+    polygon = [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]
+    holes = [
+      [{5, 7}, {7, 7}, {7, 5}, {5, 5}],
+      [{15, 7}, {17, 7}, {17, 5}, {15, 5}],
+    ]
+    assert Geo.nearest_point(polygon, holes, {{1, 6}, {5.5, 6}}) == {5, 6}
+  end
+
+  test "nearest_point stop in hole round" do
+    # M shape
+    polygon = [{0, 0}, {100, 0}, {200, 0}, {200, 200}, {100, 100}, {0, 200}]
+    holes = [
+      [{50, 70}, {70, 70}, {70, 50}],
+    ]
+    assert Geo.nearest_point(polygon, holes, {{10, 10}, {50.6, 60}}) == {50, 60}
+    assert Geo.nearest_point(polygon, holes, {{10, 10}, {50.6, 50.6}}) == {50, 50}
   end
 end
