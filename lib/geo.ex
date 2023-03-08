@@ -358,14 +358,16 @@ defmodule Geo do
   Returns `{list of concave vertices, list of convex}`.
 
   Three points that fall on the same line (`[{0, 0}, {1, 0}, {2, 0}]`) does not
-  match neither the concave/convex definition (angle gt/lt 180 degrees), see
-  `is_concave?/2.`
+  match neither the concave/convex definition (angle gt/lt 180 degrees) this
+  will discard these via `classify_vertex/2`.
 
   ## Examples
       # A vaguely M shaped polygon
       iex> Geo.classify_vertices([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}])
       {[{1, 0.5}], [{0, 0}, {1, 0}, {2, 0}, {2, 1}, {0, 1}]}
   """
+  # TODO: make a classify function that returns "neither" for not-concave &
+  # not-convex, and we filter them out here?
   def classify_vertices(polygon) do
     # We prepend the last vertex (-1) to the list and chunk into threes. That
     # way we have a list of triples {prev, current, next} that describe each
@@ -385,7 +387,43 @@ defmodule Geo do
   end
 
   @doc """
-  Determines if a vertex is concave or not.
+  Check if a vertex is concave, convex or neither.
+
+  ## Params
+  * `polygon`, a list of `{x, y}` tuples outlining a polygon. This must be non-closed.
+  * `at`, a position within `polygon` to check.
+
+  Return
+  * `:convex` for a convex vertice.
+  * `:concave` for a concave vertice.
+  * `:neither` for a vertice that's a straight edge, ie. 180 degrees.
+
+  ## Examples
+      # A vaguely M shaped polygon
+      iex> Geo.classify_vertex([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 0)
+      :convex
+      iex> Geo.classify_vertex([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 1)
+      :neither
+      iex> Geo.classify_vertex([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 4)
+      :concave
+  """
+  def classify_vertex(polygon, at) do
+    next = Enum.at(polygon, rem(at+1, length(polygon)))
+    current = Enum.at(polygon, at)
+    prev = Enum.at(polygon, at-1)
+
+    left = Vector.sub(current, prev)
+    right = Vector.sub(next, current)
+    cross = Vector.cross(left, right)
+    cond do
+      cross < 0 ->:concave
+      cross > 0 ->:convex
+      true -> :neither
+    end
+  end
+
+  @doc """
+  Check if a vertex is concave or not.
 
   ## Params
   * `polygon`, a list of `{x, y}` tuples outlining a polygon. This must be non-closed.
@@ -399,6 +437,8 @@ defmodule Geo do
 
   ## Examples
       # A vaguely M shaped polygon
+      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 0)
+      false
       iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 1)
       false
       iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 2)
@@ -407,6 +447,8 @@ defmodule Geo do
       false
       iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 4)
       true
+      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 5)
+      false
   """
   # See https://www.david-gouveia.com/pathfinding-on-a-2d-polygonal-map
   def is_concave?(polygon, at) do
@@ -417,6 +459,45 @@ defmodule Geo do
     left = Vector.sub(current, prev)
     right = Vector.sub(next, current)
     Vector.cross(left, right) < 0
+  end
+
+  @doc """
+  Check if a vertex is convex or not.
+
+  ## Params
+  * `polygon`, a list of `{x, y}` tuples outlining a polygon. This must be non-closed.
+  * `at`, a position within `polygon` to check.
+
+  Return `true` or `false`.
+
+  Three points that fall on the same line (`[{0, 0}, {1, 0}, {2, 0}]`) does not
+  match neither the concave/convex definition (angle gt/lt 180 degrees). This
+  will return false for such a vertex.
+
+  ## Examples
+      # A vaguely M shaped polygon
+      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 0)
+      true
+      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 1)
+      false
+      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 2)
+      true
+      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 3)
+      true
+      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 4)
+      false
+      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 5)
+      true
+  """
+  # See https://www.david-gouveia.com/pathfinding-on-a-2d-polygonal-map
+  def is_convex?(polygon, at) do
+    next = Enum.at(polygon, rem(at+1, length(polygon)))
+    current = Enum.at(polygon, at)
+    prev = Enum.at(polygon, at-1)
+
+    left = Vector.sub(current, prev)
+    right = Vector.sub(next, current)
+    Vector.cross(left, right) > 0
   end
 
   # Alternate, https://sourceforge.net/p/polyclipping/code/HEAD/tree/trunk/cpp/clipper.cpp#l438
