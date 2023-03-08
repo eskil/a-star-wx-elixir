@@ -196,6 +196,28 @@ defmodule GeoTest do
     assert Geo.is_line_of_sight?(polygon, holes, line) == true
   end
 
+  test "is_line_of_sight? line is from corner to corner of hole" do
+    line = {{5, 5}, {7, 7}}
+    # M shape
+    polygon = [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]
+    holes = [
+      [{5, 7}, {7, 7}, {7, 5}, {5, 5}],
+      [{15, 7}, {17, 7}, {17, 5}, {15, 5}],
+    ]
+    assert Geo.is_line_of_sight?(polygon, holes, line) == false
+  end
+
+  test "is_line_of_sight? line is from corner to corner of polygon but outside" do
+    line = {{0, 20}, {20, 20}}
+    # M shape
+    polygon = [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]
+    holes = [
+      [{5, 7}, {7, 7}, {7, 5}, {5, 5}],
+      [{15, 7}, {17, 7}, {17, 5}, {15, 5}],
+    ]
+    assert Geo.is_line_of_sight?(polygon, holes, line) == false
+  end
+
   ##
   ## Geo.distance_to_segment(_squared)
   ##
