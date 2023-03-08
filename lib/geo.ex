@@ -550,7 +550,7 @@ defmodule Geo do
   end
 
   @doc """
-  Checks if there's a line-of-sight from `start` to `stop` within the map.
+  Checks if there's a line-of-sight (LOS) from `start` to `stop` within the map.
 
   ## Params
   * `polygon`, a list of `{x, y}` vertices. This is the main boundary map.
@@ -561,15 +561,29 @@ defmodule Geo do
   Returns `true` if there's a line-of-sight and none of the main polygon or
   holes obstruct the path. `false` otherwise.
 
-  If either `start` or `stop` is outside `polygon`, the result will be false.
+  As the map consists of a boundary polygon with holes, LOS implies a few things;
+
+  * If either `start` or `stop` is outside `polygon`, the result will be
+    false. Even if both are outside, that's not considered a valid LOS.
+  * If the distance between `start` and `stop` is tiny (< 0.1 arbitrarily), LOS
+    is true.
+  * Next, it checks that the line between `start` and `stop` has no
+    intersections with `polygon` or `holes`.
+  * Finally it checks if the middle of the line between `start` and `stop` is
+    inside `polygon` and outside all holes - this ensures that corner-to-corner
+    across a hole isn't considered a LOS.
   """
   def is_line_of_sight?(polygon, holes, line) do
     {start, stop} = line
     cond do
       not is_inside?(polygon, start) or not is_inside?(polygon, stop) -> false
-      Vector.distance(start, stop) < 0.5 -> true
+      Vector.distance(start, stop) < 0.1 -> true
       not Enum.all?([polygon] ++ holes, fn points -> is_line_of_sight_helper(points, line) end) -> false
       true ->
+          # This part ensures that two vertices across from each other are not
+          # considered LOS. Without this, eg. a box-shaped hole would have
+          # opposing corners be a LOS, except that the middle of the line falls
+          # inside the hole per this check.
           middle = Vector.div(Vector.add(start, stop), 2)
           cond do
             not is_inside?(polygon, middle) -> false
