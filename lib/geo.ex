@@ -572,15 +572,12 @@ defmodule Geo do
       if Vector.distance(start, stop) < 0.5 do
         true
       else
-        rv =
-          Enum.all?([polygon] ++ holes, fn points -> is_line_of_sight_helper(points, line) end)
-        if not rv do
-          rv
+        if not Enum.all?([polygon] ++ holes, fn points -> is_line_of_sight_helper(points, line) end) do
+          false
         else
           middle = Vector.div(Vector.add(start, stop), 2)
-          rv = is_inside?(polygon, middle)
-          if not rv do
-            rv
+          if not is_inside?(polygon, middle) do
+            false
           else
             Enum.all?(holes, fn hole -> is_outside?(hole, middle, allow_border: false) end)
           end
