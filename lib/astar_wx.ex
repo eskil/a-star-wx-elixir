@@ -1,4 +1,6 @@
 defmodule AstarWx do
+  @moduledoc false
+
   require Logger
 
   @behaviour :wx_object

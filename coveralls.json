@@ -1,0 +1,9 @@
+{
+    "skip_files": [
+	"lib/wx_enum.ex",
+	"lib/wx_utils.ex",
+	"lib/wxserver.ex",
+	"lib/astar_wx.ex",
+	"lib/astar_wx/application.ex"
+    ]
+}

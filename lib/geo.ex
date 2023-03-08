@@ -324,8 +324,8 @@ defmodule Geo do
 
   ## Examples
       # A vaguely M shaped polygon
-      iex> Geo.classify_vertices([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}])
-      {[{1, 0.5}], [{0, 0}, {2, 0}, {2, 1}, {0, 1}]}
+      iex> Geo.classify_vertices([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}])
+      {[{1, 0.5}], [{0, 0}, {0, 1}, {2, 1}, {2, 0}]}
   """
   def classify_vertices(polygon) do
     {concave, convex} = Enum.reduce(polygon, {0, []}, fn point, {idx, acc} ->
@@ -342,6 +342,12 @@ defmodule Geo do
   @doc """
   Check if a vertex is concave, convex or neither.
 
+  Whehter a vertex is concave or convex is defined by it pointing out - it's
+  inner angle is less than 180 means convex and more than 180 means concave.
+
+  When testing a vertex, keep this in mind and negate appropriately depending
+  on whether it's the boundary polygon or a hole polygon being tested.
+
   ## Params
   * `polygon`, a list of `{x, y}` tuples outlining a polygon. This must be non-closed.
   * `at`, a position within `polygon` to check.
@@ -353,11 +359,11 @@ defmodule Geo do
 
   ## Examples
       # A vaguely M shaped polygon
-      iex> Geo.classify_vertex([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 0)
+      iex> Geo.classify_vertex([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 0)
       :convex
-      iex> Geo.classify_vertex([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 1)
+      iex> Geo.classify_vertex([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 5)
       :neither
-      iex> Geo.classify_vertex([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 4)
+      iex> Geo.classify_vertex([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 2)
       :concave
   """
   def classify_vertex(polygon, at) do
@@ -370,8 +376,8 @@ defmodule Geo do
     cross = Vector.cross(left, right)
 
     cond do
-      cross < 0 ->:concave
-      cross > 0 ->:convex
+      cross > 0 -> :concave
+      cross < 0 -> :convex
       true -> :neither
     end
   end
@@ -648,12 +654,10 @@ defmodule Geo do
   end
 
   defp nearest_point_helper(_, holes, line, true) do
-    Logger.info("inside main")
     nearest_point_in_holes(holes, line)
   end
 
   defp nearest_point_helper(points, _holes, line, false) do
-    Logger.info("outside main")
     nearest_boundary_point_helper(points, line)
   end
 
@@ -666,13 +670,11 @@ defmodule Geo do
     nearest_point_in_holes_helper([hole|holes], line, Geo.is_inside?(hole, stop, allow_border: false))
   end
 
-  defp nearest_point_in_holes_helper([hole|holes], line, false) do
-    Logger.info("outside hole #{inspect hole}")
+  defp nearest_point_in_holes_helper([_hole|holes], line, false) do
     nearest_point_in_holes(holes, line)
   end
 
   defp nearest_point_in_holes_helper([hole|_holes], line, true) do
-    Logger.info("in a hole #{inspect hole}")
     nearest_boundary_point_helper(hole, line)
   end
 

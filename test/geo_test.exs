@@ -359,16 +359,16 @@ defmodule GeoTest do
   test "classify_vertices" do
     # M shape
     polygon = [{0, 0}, {0, 20}, {10, 10}, {20, 20}, {20, 0}, {10, 0}]
-    assert Geo.classify_vertices(polygon) == {[{0, 0}, {0, 20}, {20, 20}, {20, 0}], [{10, 10}]}
+    assert Geo.classify_vertices(polygon) == {[{10, 10}], [{0, 0}, {0, 20}, {20, 20}, {20, 0}]}
   end
 
   test "classify_vertices triangle" do
-    triangle = [{50, 70}, {70, 50}, {70, 70}]
+    triangle = [{50, 70}, {70, 70}, {70, 50}]
     assert Geo.classify_vertices(triangle) == {[], triangle}
   end
 
   test "classify_vertices squiggle" do
-    polygon = [{250, 170}, {256, 153}, {270, 150}, {295, 185}]
+    polygon = [{250, 170}, {295, 185}, {270, 150}, {256, 153}]
     assert Geo.classify_vertices(polygon) == {[], polygon}
   end
 
