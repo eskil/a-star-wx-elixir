@@ -644,7 +644,7 @@ defmodule AstarWx do
 
   def find_nearest_stop_point(points, line) do
     {_start, stop} = line
-    {x, y} = Geo.closest_point_on_edge(points, stop)
+    {x, y} = Geo.nearest_point_on_edge(points, stop)
 
     # This is problematic area - we want to round towards the start of
     # the line Eg. in complex.json scene, clicking {62, 310} yields {64.4,

@@ -246,55 +246,6 @@ defmodule Geo do
     :math.sqrt(distance_to_segment_squared(line, point))
   end
 
-  @doc """
-  Find the edge of a polygon nearest a given point
-
-  Given a `point` that's inside or outside a given `polygon`, this checks each
-  segment of the polygon, and returns the nearest one.
-
-  ## Params
-  * `polygon`, a list of `{x, y}` vertices, `[{x1, y2}, {x2, y2}, ...]`. This
-    must be non-closed.
-  * `point` a tuple `{x, y}` describing a point
-
-  Returns the `{{x1, y1}, {x2, y2}}` segment that is closest to the point.
-  """
-  def nearest_edge(polygon, point) do
-    # Get the closest segment of the polygon
-    polygon
-    |> Enum.chunk_every(2, 1, Enum.slice(polygon, 0, 2))
-    |> Enum.map(fn [a, b] -> {a, b} end)
-    |> Enum.min_by(&(distance_to_segment(&1, point)))
-  end
-
-  @doc """
-  Find the point on the edge of a polygon nearest a given point.
-
-  Given a `point` that's inside or outside a given `polygon`, this uses
-  `nearest_edge/2` to find the closest edge and then computes the point on the
-  edge nearest the given `point`.
-
-  ## Params
-  * `polygon`, a list of `{x, y}` vertices, `[{x1, y2}, {x2, y2}, ...]`. This
-    must be non-closed.
-  * `point` a tuple `{x, y}` describing a point
-
-  Returns the `{x, y}` on an edge of the polygon that is nearest `point`.
-  """
-  def closest_point_on_edge(polygon, point) do
-    # Get the closest segment of the polygon
-    {{x1, y1}, {x2, y2}} = nearest_edge(polygon, point)
-
-    {x, y}=point
-    u = (((x - x1) * (x2 - x1)) + ((y - y1) * (y2 - y1))) / (((x2 - x1) * (x2 - x1)) + ((y2 - y1) * (y2 - y1)))
-
-    cond do
-      u < 0 -> {x1, y1}
-      u > 1 -> {x2, y2}
-      true -> {x1 + u * (x2 - x1), y1 + u * (y2 - y1)}
-    end
-  end
-
   # ported from http://www.david-gouveia.com/portfolio/pathfinding-on-a-2d-polygonal-map/
   @doc """
   Test if two lines intersect
@@ -609,7 +560,55 @@ defmodule Geo do
   end
 
   @doc """
+  Find the edge of a polygon nearest a given point
 
+  Given a `point` that's inside or outside a given `polygon`, this checks each
+  segment of the polygon, and returns the nearest one.
+
+  ## Params
+  * `polygon`, a list of `{x, y}` vertices, `[{x1, y2}, {x2, y2}, ...]`. This
+    must be non-closed.
+  * `point` a tuple `{x, y}` describing a point
+
+  Returns the `{{x1, y1}, {x2, y2}}` segment that is closest to the point.
+  """
+  def nearest_edge(polygon, point) do
+    # Get the closest segment of the polygon
+    polygon
+    |> Enum.chunk_every(2, 1, Enum.slice(polygon, 0, 2))
+    |> Enum.map(fn [a, b] -> {a, b} end)
+    |> Enum.min_by(&(distance_to_segment(&1, point)))
+  end
+
+  @doc """
+  Find the point on the edge of a polygon nearest a given point.
+
+  Given a `point` that's inside or outside a given `polygon`, this uses
+  `nearest_edge/2` to find the closest edge and then computes the point on the
+  edge nearest the given `point`.
+
+  ## Params
+  * `polygon`, a list of `{x, y}` vertices, `[{x1, y2}, {x2, y2}, ...]`. This
+    must be non-closed.
+  * `point` a tuple `{x, y}` describing a point
+
+  Returns the `{x, y}` on an edge of the polygon that is nearest `point`.
+  """
+  def nearest_point_on_edge(polygon, point) do
+    # Get the closest segment of the polygon
+    {{x1, y1}, {x2, y2}} = nearest_edge(polygon, point)
+
+    {x, y}=point
+    u = (((x - x1) * (x2 - x1)) + ((y - y1) * (y2 - y1))) / (((x2 - x1) * (x2 - x1)) + ((y2 - y1) * (y2 - y1)))
+
+    cond do
+      u < 0 -> {x1, y1}
+      u > 1 -> {x2, y2}
+      true -> {x1 + u * (x2 - x1), y1 + u * (y2 - y1)}
+    end
+  end
+
+  @doc """
   Find the nearest point for the given line if it's outside the map or in a
   hole.
 
@@ -637,34 +636,34 @@ defmodule Geo do
     nearest_point_helper(polygon, holes, line, Geo.is_inside?(polygon, stop))
   end
 
-  def nearest_point_helper(_, holes, line, true) do
+  defp nearest_point_helper(_, holes, line, true) do
     nearest_point_in_holes(holes, line)
   end
 
-  def nearest_point_helper(points, _holes, line, false) do
+  defp nearest_point_helper(points, _holes, line, false) do
     nearest_boundary_point_helper(points, line)
   end
 
-  def nearest_point_in_holes([], {_start, stop}=_line) do
+  defp nearest_point_in_holes([], {_start, stop}=_line) do
     stop
   end
 
-  def nearest_point_in_holes([hole|holes], line) do
+  defp nearest_point_in_holes([hole|holes], line) do
     {_start, stop} = line
     nearest_point_in_holes_helper([hole|holes], line, Geo.is_inside?(hole, stop, allow_border: false))
   end
 
-  def nearest_point_in_holes_helper([_hole|holes], line, false) do
+  defp nearest_point_in_holes_helper([_hole|holes], line, false) do
     nearest_point_in_holes(holes, line)
   end
 
-  def nearest_point_in_holes_helper([hole|_holes], line, true) do
+  defp nearest_point_in_holes_helper([hole|_holes], line, true) do
     nearest_boundary_point_helper(hole, line)
   end
 
-  def nearest_boundary_point_helper(polygon, line) do
+  defp nearest_boundary_point_helper(polygon, line) do
     {_start, stop} = line
-    {x, y} = Geo.closest_point_on_edge(polygon, stop)
+    {x, y} = Geo.nearest_point_on_edge(polygon, stop)
 
     # This is problematic area - we want to round towards the start of
     # the line Eg. in complex.json scene, clicking {62, 310} yields {64.4,
