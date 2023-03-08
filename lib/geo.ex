@@ -607,4 +607,102 @@ defmodule Geo do
     |> Enum.reject(fn p -> p == x or p == y end)
     == []
   end
+
+  @doc """
+
+  Find the nearest point for the given line if it's outside the map or in a
+  hole.
+
+  ## Params
+  * `polygon`, a list of `{x, y}` vertices. This is the main boundary map.
+  * `holes`, a list of lists of `{x, y}` vertices. These are holes within
+    `polygon`.
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
+
+  The function will return a new point for b such that;
+
+  * if `{bx, by}` is outside the main map, the new b is the closest point on
+    the main map.
+
+  * if b is inside the main map, but also inside a hole, the new bis the
+    closest point on the holes edges.
+  """
+  # TODO: move to a polygon_map.ex
+  def nearest_point([], _, {_start, stop}=_line) do
+    stop
+  end
+
+  def nearest_point(polygon, holes, line) do
+    {_start, stop} = line
+    nearest_point_helper(polygon, holes, line, Geo.is_inside?(polygon, stop))
+  end
+
+  def nearest_point_helper(_, holes, line, true) do
+    nearest_point_in_holes(holes, line)
+  end
+
+  def nearest_point_helper(points, _holes, line, false) do
+    nearest_boundary_point_helper(points, line)
+  end
+
+  def nearest_point_in_holes([], {_start, stop}=_line) do
+    stop
+  end
+
+  def nearest_point_in_holes([hole|holes], line) do
+    {_start, stop} = line
+    nearest_point_in_holes_helper([hole|holes], line, Geo.is_inside?(hole, stop, allow_border: false))
+  end
+
+  def nearest_point_in_holes_helper([_hole|holes], line, false) do
+    nearest_point_in_holes(holes, line)
+  end
+
+  def nearest_point_in_holes_helper([hole|_holes], line, true) do
+    nearest_boundary_point_helper(hole, line)
+  end
+
+  def nearest_boundary_point_helper(polygon, line) do
+    {_start, stop} = line
+    {x, y} = Geo.closest_point_on_edge(polygon, stop)
+
+    # This is problematic area - we want to round towards the start of
+    # the line Eg. in complex.json scene, clicking {62, 310} yields {64.4,
+    # 308.8}, which naive rounding makes {64, 309}. This however places us *back*
+    # *inside* the hole.
+
+    # Some options are; try all four combos or floor/ceil and see which yields
+    # the minimal distance - wrong, since the start might be on the far side of
+    # a hole.
+
+    # Shorten towards start? Same thing.
+
+    # Actually run A-star to compute all four rounding and pick the shortest
+    # path - that's a bit cpu heavy.
+
+    # Compute all four rounding options and pick one that's *not* inside the
+    # hole, and don't allow it to be on the border.
+
+    p = {round(x), round(y)}
+    a = {ceil(x), ceil(y)}
+    b = {ceil(x), floor(y)}
+    c = {floor(x), ceil(y)}
+    d = {floor(x), floor(y)}
+
+    cond do
+      Geo.is_outside?(polygon, p, allow_border: false) ->
+        p
+      Geo.is_outside?(polygon, a, allow_border: false) ->
+        a
+      Geo.is_outside?(polygon, b, allow_border: false) ->
+        b
+      Geo.is_outside?(polygon, c, allow_border: false) ->
+        c
+      Geo.is_outside?(polygon, d, allow_border: false) ->
+        d
+    end
+    # If none of the points are outside, we'll pleasantly crash and we should
+    # improve this to continuously move outwards a reasonable amount until
+    # we're outside.
+  end
 end

@@ -463,7 +463,8 @@ defmodule AstarWx do
 
   def get_updated_graph_vertices_path(polygons, vertices, graph, start, stop) do
     line = {start, stop}
-    np = find_nearest_point(polygons, line)
+    {main, holes} = Scene.classify_polygons(polygons)
+    np = Geo.nearest_point(main, holes, line)
 
     {graph_usec, {new_graph, new_vertices}} = :timer.tc(fn -> extend_graph(polygons, graph, vertices, [start, np]) end)
 
@@ -584,7 +585,9 @@ defmodule AstarWx do
   end
 
   @doc """
-  Find the nearest point on a polygen for the given line if it's outside the map or in a hole.
+
+  Find the nearest point on a polygen for the given line if it's outside the
+  map or in a hole.
 
   ## Params
 
@@ -657,19 +660,14 @@ defmodule AstarWx do
     # Actually a-star compute all four rounding and pick the shortest path -
     # that's a bit cpu heavy.
 
-    # Compute all four rounding and pick one that's *not* inside the hole, and don't allow it to be on the border
+    # Compute all four rounding and pick one that's *not* inside the hole, and
+    # don't allow it to be on the border
 
     p = {round(x), round(y)}
     a = {ceil(x), ceil(y)}
     b = {ceil(x), floor(y)}
     c = {floor(x), ceil(y)}
     d = {floor(x), floor(y)}
-
-    # Logger.info("Checking options p #{inspect p} = #{inspect Geo.is_outside?(points, p, allow_border: false)}")
-    # Logger.info("                 a #{inspect a} = #{inspect Geo.is_outside?(points, a, allow_border: false)}")
-    # Logger.info("                 b #{inspect b} = #{inspect Geo.is_outside?(points, b, allow_border: false)}")
-    # Logger.info("                 c #{inspect c} = #{inspect Geo.is_outside?(points, c, allow_border: false)}")
-    # Logger.info("                 d #{inspect d} = #{inspect Geo.is_outside?(points, d, allow_border: false)}")
 
     cond do
       Geo.is_outside?(points, p, allow_border: false) ->
