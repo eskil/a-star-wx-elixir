@@ -1,7 +1,7 @@
-defmodule AstarPathfind do
+defmodule Astar do
   require Logger
 
-  def search(graph, start, stop, heur_fun) do
+  def find_path(graph, start, stop, heur_fun) do
     # Logger.info("----------------------------------------- A-star")
     # Logger.info("graph = #{inspect graph, pretty: true}")
     queue = [start]
@@ -22,7 +22,7 @@ defmodule AstarPathfind do
       # vertice => cost, distance from start to vervice + heuristic distance to stop
       f_cost: %{}
     }
-    |> search_helper
+    |> pathfind_helper
   end
 
   defp sort_queue(queue, f_cost) do
@@ -34,11 +34,11 @@ defmodule AstarPathfind do
     |> Enum.dedup
   end
 
-  defp search_helper(%{queue: []}=state) do
+  defp pathfind_helper(%{queue: []}=state) do
     state
   end
 
-  defp search_helper(%{queue: [current|queue]}=state) do
+  defp pathfind_helper(%{queue: [current|queue]}=state) do
     # Logger.info("----------------------------------------- A-star search")
     # Logger.info("current = #{inspect current, pretty: true}")
     # Logger.info("state = #{inspect Map.delete(state, :graph), pretty: true}")
@@ -103,7 +103,7 @@ defmodule AstarPathfind do
           shortest_path_tree: spt,
         }
 
-      search_helper(new_state)
+      pathfind_helper(new_state)
     end
   end
 

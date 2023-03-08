@@ -15,7 +15,6 @@ defmodule Geo do
   * They must not be closed, ie. last vertex should not be equal to the first.
   * They must be in clockwise order, otherwise convex/concave classification
     won't work as expected (it'll be inversed).
-
   """
   require Logger
 
@@ -68,7 +67,6 @@ defmodule Geo do
       [{1.0, 0.0}]
       iex> Geo.intersections(line, polygon, allow_points: true)
       [{1.0, 0.0}, {1.0, 0.5}]
-
   """
   def intersections(line, polygon, opts \\ []) do
     allow_points = Keyword.get(opts, :allow_points, false)
@@ -397,17 +395,17 @@ defmodule Geo do
 
   ## Examples
       # A vaguely M shaped polygon
-      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 0)
+      iex> Geo.is_concave?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 0)
       false
-      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 1)
+      iex> Geo.is_concave?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 1)
       false
-      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 2)
-      false
-      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 3)
-      false
-      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 4)
+      iex> Geo.is_concave?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 2)
       true
-      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 5)
+      iex> Geo.is_concave?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 3)
+      false
+      iex> Geo.is_concave?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 4)
+      false
+      iex> Geo.is_concave?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 5)
       false
   """
   # See https://www.david-gouveia.com/pathfinding-on-a-2d-polygonal-map
@@ -418,7 +416,7 @@ defmodule Geo do
 
     left = Vector.sub(current, prev)
     right = Vector.sub(next, current)
-    Vector.cross(left, right) < 0
+    Vector.cross(left, right) > 0
   end
 
   @doc """
@@ -436,18 +434,18 @@ defmodule Geo do
 
   ## Examples
       # A vaguely M shaped polygon
-      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 0)
+      iex> Geo.is_convex?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 0)
       true
-      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 1)
+      iex> Geo.is_convex?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 1)
+      true
+      iex> Geo.is_convex?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 2)
       false
-      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 2)
+      iex> Geo.is_convex?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 3)
       true
-      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 3)
+      iex> Geo.is_convex?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 4)
       true
-      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 4)
+      iex> Geo.is_convex?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 5)
       false
-      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 5)
-      true
   """
   # See https://www.david-gouveia.com/pathfinding-on-a-2d-polygonal-map
   def is_convex?(polygon, at) do
@@ -457,7 +455,7 @@ defmodule Geo do
 
     left = Vector.sub(current, prev)
     right = Vector.sub(next, current)
-    Vector.cross(left, right) > 0
+    Vector.cross(left, right) < 0
   end
 
   # Alternate, https://sourceforge.net/p/polyclipping/code/HEAD/tree/trunk/cpp/clipper.cpp#l438

@@ -470,8 +470,8 @@ defmodule AstarWx do
     {graph_usec, {new_graph, new_vertices}} = :timer.tc(fn -> extend_graph(polygons, graph, vertices, [start, np]) end)
 
     {astar_usec, path} = :timer.tc(fn ->
-      astar = AstarPathfind.search(new_graph, start, np, fn a, b -> Vector.distance(a, b) end)
-      AstarPathfind.get_path(astar)
+      astar = Astar.find_path(new_graph, start, np, fn a, b -> Vector.distance(a, b) end)
+      Astar.get_path(astar)
     end)
 
     # Curtesy compute and print distance.
@@ -497,9 +497,11 @@ defmodule AstarWx do
   def get_walk_vertices(polygons) do
     {main, holes} = Scene.classify_polygons(polygons)
     {concave, _convex} = Geo.classify_vertices(main)
+    Logger.info("Concave for main = #{inspect concave, pretty: true}")
 
     convex = Enum.reduce(holes, [], fn points, acc ->
       {_, convex} = Geo.classify_vertices(points)
+      Logger.info("Convex for hole = #{inspect convex, pretty: true}")
       acc ++ convex
     end)
     Logger.info("convex = #{inspect convex, pretty: true}")
