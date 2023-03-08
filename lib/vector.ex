@@ -255,7 +255,22 @@ defmodule Vector do
   end
 
   def angle({x, y}=_v) do
-    :math.atan(-y / -x)
+    # East-Counterclockwise Convention
+    :math.atan(y / x)
+  end
+
+  @doc """
+  Angle between two vectors
+  """
+  def angle(v1, v2) do
+    :math.acos(dot(v1, v2) / (len(v1) * len(v2)))
+  end
+
+  @doc """
+  Degree between two vectors
+  """
+  def degrees(v1, v2) do
+    angle(v1, v2) * (180 / :math.pi)
   end
 
   @doc """

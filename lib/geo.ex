@@ -9,6 +9,13 @@ defmodule Geo do
   * intersections of lines and polygons
   * checking if points are inside/outside polygons
   * finding nearest point on a polygon and distances
+
+  Polygons are
+  * A list of vertices, `[{x1, y1}, {x2,y2}, ...]`.
+  * They must not be closed, ie. last vertex should not be equal to the first.
+  * They must be in clockwise order, otherwise convex/concave classification
+    won't work as expected (it'll be inversed).
+
   """
   require Logger
 
@@ -248,18 +255,21 @@ defmodule Geo do
 
   # ported from http://www.david-gouveia.com/portfolio/pathfinding-on-a-2d-polygonal-map/
   @doc """
-  Test if two lines intersect
+  Check if two lines intersect
 
   This is a simpler version of `line_segment_intersection/2`, which is typically
-  a better choice since it can handle endpoints too.
+  a better choice since it handles endpoints and segment overlap too.
 
   ## Params
   * `line1` a `{{x1, y1}, {x2, y2}}` line segment
   * `line2` a `{{x3, y13, {x4, y4}}` line segment
 
-  Returns `true` if they intersect anywhere (at ends too), `false` otherwise.
+  Returns `true` if they intersect, `false` otherwise.
+
+  Note that this doesn't handle segment overlap or points touching. Use
+  `line_segment_intersection/2` instead for that level of detail.
   """
-  def lines_intersect({{ax1, ay1}, {ax2, ay2}}=_l1, {{bx1, by1}, {bx2, by2}}=_l2) do
+  def do_lines_intersect?({{ax1, ay1}, {ax2, ay2}}=_l1, {{bx1, by1}, {bx2, by2}}=_l2) do
     den = ((ax2 - ax1) * (by2 - by1)) - ((ay2 - ay1) * (bx2 - bx1))
     if den == 0 do
       false
@@ -325,7 +335,7 @@ defmodule Geo do
     |> Enum.reject(fn {_point, type} -> type == :neither end)
     |> Enum.split_with(fn {_point, type} -> type == :concave end)
 
-    # finally remove the is_concave bit
+    # Remove the type
     {Enum.map(concave, fn {p, _} -> p end), Enum.map(convex, fn {p, _} -> p end)}
   end
 
@@ -358,6 +368,7 @@ defmodule Geo do
     left = Vector.sub(current, prev)
     right = Vector.sub(next, current)
     cross = Vector.cross(left, right)
+
     cond do
       cross < 0 ->:concave
       cross > 0 ->:convex
@@ -598,7 +609,7 @@ defmodule Geo do
     # Get the closest segment of the polygon
     {{x1, y1}, {x2, y2}} = nearest_edge(polygon, point)
 
-    {x, y}=point
+    {x, y} = point
     u = (((x - x1) * (x2 - x1)) + ((y - y1) * (y2 - y1))) / (((x2 - x1) * (x2 - x1)) + ((y2 - y1) * (y2 - y1)))
 
     cond do
@@ -637,10 +648,12 @@ defmodule Geo do
   end
 
   defp nearest_point_helper(_, holes, line, true) do
+    Logger.info("inside main")
     nearest_point_in_holes(holes, line)
   end
 
   defp nearest_point_helper(points, _holes, line, false) do
+    Logger.info("outside main")
     nearest_boundary_point_helper(points, line)
   end
 
@@ -653,11 +666,13 @@ defmodule Geo do
     nearest_point_in_holes_helper([hole|holes], line, Geo.is_inside?(hole, stop, allow_border: false))
   end
 
-  defp nearest_point_in_holes_helper([_hole|holes], line, false) do
+  defp nearest_point_in_holes_helper([hole|holes], line, false) do
+    Logger.info("outside hole #{inspect hole}")
     nearest_point_in_holes(holes, line)
   end
 
   defp nearest_point_in_holes_helper([hole|_holes], line, true) do
+    Logger.info("in a hole #{inspect hole}")
     nearest_boundary_point_helper(hole, line)
   end
 
@@ -665,9 +680,9 @@ defmodule Geo do
     {_start, stop} = line
     {x, y} = Geo.nearest_point_on_edge(polygon, stop)
 
-    # This is problematic area - we want to round towards the start of
-    # the line Eg. in complex.json scene, clicking {62, 310} yields {64.4,
-    # 308.8}, which naive rounding makes {64, 309}. This however places us *back*
+    # This is a problematic area - we want to round towards the start of the
+    # line Eg. in complex.json scene, clicking {62, 310} yields {64.4, 308.8},
+    # which naive rounding makes {64, 309}. This however places us *back*
     # *inside* the hole.
 
     # Some options are; try all four combos or floor/ceil and see which yields

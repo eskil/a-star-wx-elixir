@@ -47,9 +47,8 @@ defmodule AstarWx do
     Logger.info("starting timer #{slice}ms")
     timer_ref = Process.send_after(self(), :tick, slice)
 
-    {start, polygons} = Scene.load()
+    {start, polygons} = Scene.load("complex")
 
-    Logger.info("\n\n\n")
     walk_vertices = get_walk_vertices(polygons)
     walk_graph = create_walk_graph(polygons, walk_vertices)
 
@@ -501,6 +500,7 @@ defmodule AstarWx do
       {_, convex} = Geo.classify_vertices(points)
       acc ++ convex
     end)
+    Logger.info("convex = #{inspect convex, pretty: true}")
 
     concave ++ convex
   end

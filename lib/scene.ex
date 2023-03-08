@@ -13,9 +13,7 @@ defmodule Scene do
 
   # Transform a json polygon, `name, [[x, y], [x, y]...]` list to a `{name, [{x, y}, ...]}`.
   def transform_walkbox({name, points}) do
-    Logger.info("transform box -> #{inspect points}")
     points = Enum.map(points, &(transform_point(&1)))
-    Logger.info("transform box <- #{inspect points}")
     {name, points}
   end
 
@@ -45,19 +43,18 @@ defmodule Scene do
     {mains[:main], holes}
   end
 
-  def load() do
+  def load(scene) do
     path = Application.app_dir(:astarwx)
-    # filename = "#{path}/priv/scene1.json"
-    filename = "#{path}/priv/complex.json"
+    filename = "#{path}/priv/#{scene}.json"
     Logger.info("Processing #{filename}")
     {:ok, file} = File.read(filename)
     {:ok, json} = Poison.decode(file, keys: :atoms)
-    Logger.info("#{inspect json, pretty: true}")
+    Logger.info("JSON #{inspect json, pretty: true}")
     polygons =
       json[:polygons]
       |> transform_walkboxes
       |> unclose_walkboxes
-    Logger.info("#{inspect polygons, pretty: true}")
+    Logger.info("Polygons #{inspect polygons, pretty: true}")
     {
       transform_point(json[:start]),
       polygons,
