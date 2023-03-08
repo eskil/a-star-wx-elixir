@@ -320,4 +320,27 @@ defmodule GeoTest do
     assert Geo.is_outside?(polygon, point, allow_border: false) == true
   end
 
+  ##
+  ## Geo.nearest_edge
+  ##
+
+  test "nearest_edge" do
+    # Box
+    polygon = [{0, 0}, {2, 0}, {2, 2}, {0, 2}]
+    assert Geo.nearest_edge(polygon, {-1, 1}) == {{0, 2}, {0, 0}}
+    assert Geo.nearest_edge(polygon, {1, 2.5}) == {{2, 2}, {0, 2}}
+    assert Geo.nearest_edge(polygon, {3, 1}) == {{2, 0}, {2, 2}}
+  end
+
+  ##
+  ## Geo.nearest_point_on_edge
+  ##
+
+  test "nearest_point_on_edge" do
+    # Box
+    polygon = [{0, 0}, {2, 0}, {2, 2}, {0, 2}]
+    assert Geo.nearest_point_on_edge(polygon, {-1, 1}) == {0, 1}
+    assert Geo.nearest_point_on_edge(polygon, {1, 2.5}) == {1, 2}
+    assert Geo.nearest_point_on_edge(polygon, {3, 1}) == {2, 1}
+  end
 end
