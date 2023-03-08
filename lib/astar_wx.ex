@@ -514,8 +514,11 @@ defmodule AstarWx do
       Enum.reduce(points_a, {0, %{}}, fn a, {a_idx, acc1} ->
         {_, inner_edges} =
           Enum.reduce(points_b, {0, []}, fn b, {b_idx, acc2} ->
+            # NOTE: this is where the edge value is becomes the key in the
+            # graph. This is why a_idx and b_idx are available here, in case we
+            # want to change it up to be the indexes into points. Unless those
+            # two sets are the same, using the indexes makes no sense.
             if a != b and is_reachable?.(a, b) do
-              # TODO: use idx or actual points?
               {b_idx + 1, acc2 ++ [{b, cost_fun.(a, b)}]}
             else
               {b_idx + 1, acc2}
@@ -536,7 +539,6 @@ defmodule AstarWx do
   end
 
   @doc """
-
   Given a polygon map (main & holes), list of vertices and the initial graph,
   extend the graph with extra `points`.
 
