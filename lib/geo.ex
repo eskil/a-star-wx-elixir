@@ -565,24 +565,17 @@ defmodule Geo do
   """
   def is_line_of_sight?(polygon, holes, line) do
     {start, stop} = line
-    # TODO: this is a kind of a mess...
-    if not is_inside?(polygon, start) or not is_inside?(polygon, stop) do
-      false
-    else
-      if Vector.distance(start, stop) < 0.5 do
-        true
-      else
-        if not Enum.all?([polygon] ++ holes, fn points -> is_line_of_sight_helper(points, line) end) do
-          false
-        else
+    cond do
+      not is_inside?(polygon, start) or not is_inside?(polygon, stop) -> false
+      Vector.distance(start, stop) < 0.5 -> true
+      not Enum.all?([polygon] ++ holes, fn points -> is_line_of_sight_helper(points, line) end) -> false
+      true ->
           middle = Vector.div(Vector.add(start, stop), 2)
-          if not is_inside?(polygon, middle) do
-            false
-          else
-            Enum.all?(holes, fn hole -> is_outside?(hole, middle, allow_border: false) end)
+          cond do
+            not is_inside?(polygon, middle) -> false
+            Enum.all?(holes, fn hole -> is_outside?(hole, middle, allow_border: false) end) -> true
+            true -> false
           end
-        end
-      end
     end
   end
 
