@@ -573,7 +573,7 @@ defmodule Geo do
       else
         # TODO: use Enum.any?
         rv =
-          Enum.reduce_while([polygon] ++ holes, true, fn points, _acc ->
+          Enum.all?([polygon] ++ holes, fn points ->
             is_line_of_sight_helper(points, line)
           end)
         if not rv do
@@ -604,17 +604,9 @@ defmodule Geo do
     # line would immediately intersect at both ends.
 
     # TODO: line/polygon oder is inconsistent
-    is =
-      intersections(line, points, allow_points: true)
-      |> Enum.map(fn {x, y} -> {round(x), round(y)} end)
-      |> Enum.reject(fn p -> p == x or p == y end)
-
-    if is == [] do
-      {:cont, true}
-    else
-      # NOTE: maybe if I apply "is_inside" to intersection points with allow
-      # border=false to check?
-      {:halt, false}
-    end
+    intersections(line, points, allow_points: true)
+    |> Enum.map(fn {x, y} -> {round(x), round(y)} end)
+    |> Enum.reject(fn p -> p == x or p == y end)
+    == []
   end
 end
