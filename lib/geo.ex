@@ -364,23 +364,15 @@ defmodule Geo do
   ## Examples
       # A vaguely M shaped polygon
       iex> Geo.classify_vertices([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}])
-      {[{1, 0.5}], [{0, 0}, {1, 0}, {2, 0}, {2, 1}, {0, 1}]}
+      {[{1, 0.5}], [{0, 0}, {2, 0}, {2, 1}, {0, 1}]}
   """
-  # TODO: make a classify function that returns "neither" for not-concave &
-  # not-convex, and we filter them out here?
   def classify_vertices(polygon) do
-    # We prepend the last vertex (-1) to the list and chunk into threes. That
-    # way we have a list of triples {prev, current, next} that describe each
-    # vertex set. We apply the logic to determine if it's concave. Finally
-    # split by concave and filter out the boolean.
-    {concave, convex} =
-      Enum.chunk_every([Enum.at(polygon, -1)] ++ polygon, 3, 1, Enum.slice(polygon, 0, 2))
-      |> Enum.map(fn [prev, current, next] ->
-        left = Vector.sub(current, prev)
-        right = Vector.sub(next, current)
-        {current, Vector.cross(left, right) < 0}
-      end)
-      |> Enum.split_with(fn {_, is_concave} -> is_concave end)
+    {concave, convex} = Enum.reduce(polygon, {0, []}, fn point, {idx, acc} ->
+      {idx + 1, acc ++ [{point, classify_vertex(polygon, idx)}]}
+    end)
+    |> elem(1)
+    |> Enum.reject(fn {_point, type} -> type == :neither end)
+    |> Enum.split_with(fn {_point, type} -> type == :concave end)
 
     # finally remove the is_concave bit
     {Enum.map(concave, fn {p, _} -> p end), Enum.map(convex, fn {p, _} -> p end)}
