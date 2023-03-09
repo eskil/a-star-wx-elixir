@@ -13,10 +13,20 @@ defmodule Geo do
   Polygons are
   * A list of vertices, `[{x1, y1}, {x2,y2}, ...]`.
   * They must not be closed, ie. last vertex should not be equal to the first.
-  * They must be in clockwise order, otherwise convex/concave classification
-    won't work as expected (it'll be inversed).
+  * They must be in clockwise order in screen coordinates, otherwise
+    convex/concave classification will be inversed as it traverses the egdes.
+
+  > ### Order of vertices {: .warning}
+  >
+  > They must be in clockwise order in screen coordinates, otherwise
+  > convex/concave classification will be inversed as it traverses the egdes.
+  >
+  > Here's a crude drawing as an example of the M shaped polygon used for many tests/docs.
+  >
+  > `polygon =
+  > ![Order of vertices](graph.png)
+
   """
-  require Logger
 
   # TODO: line/polygon oder is inconsistent
 
@@ -357,7 +367,7 @@ defmodule Geo do
 
   ## Examples
       # A vaguely M shaped polygon
-      iex> Geo.classify_vertex([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 0)
+      iex> Geo.classify_vertex([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 1)
       :convex
       iex> Geo.classify_vertex([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 5)
       :neither
@@ -375,8 +385,8 @@ defmodule Geo do
     cross = Vector.cross(left, right)
 
     cond do
-      cross > 0 -> :concave
-      cross < 0 -> :convex
+      cross < 0 -> :concave
+      cross > 0 -> :convex
       true -> :neither
     end
   end

@@ -496,11 +496,14 @@ defmodule AstarWx do
   # TODO: move to a polygon_map.ex
   def get_walk_vertices(polygons) do
     {main, holes} = Scene.classify_polygons(polygons)
-    {concave, _convex} = Geo.classify_vertices(main)
+    {concave, convex} = Geo.classify_vertices(main)
+    Logger.info("Concave for main = #{inspect main, pretty: true}")
     Logger.info("Concave for main = #{inspect concave, pretty: true}")
+    Logger.info("Convex for main = #{inspect convex, pretty: true}")
 
     convex = Enum.reduce(holes, [], fn points, acc ->
-      {_, convex} = Geo.classify_vertices(points)
+      {_concave, convex} = Geo.classify_vertices(points)
+      Logger.info("Convex for hole = #{inspect points, pretty: true}")
       Logger.info("Convex for hole = #{inspect convex, pretty: true}")
       acc ++ convex
     end)
