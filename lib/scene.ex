@@ -43,6 +43,11 @@ defmodule Scene do
     {mains[:main], holes}
   end
 
+  # Quick and dirty tap function that'll crash if any polygon isn't clockwise.
+  defp check_clockwise(polygons) do
+    true = Enum.all?(polygons, fn {_name, polygon} -> Geo.is_clockwise?(polygon) end)
+  end
+
   def load(scene) do
     path = Application.app_dir(:astarwx)
     filename = "#{path}/priv/#{scene}.json"
@@ -50,11 +55,15 @@ defmodule Scene do
     {:ok, file} = File.read(filename)
     {:ok, json} = Poison.decode(file, keys: :atoms)
     Logger.info("JSON #{inspect json, pretty: true}")
+
     polygons =
       json[:polygons]
       |> transform_walkboxes
       |> unclose_walkboxes
+      |> tap(&check_clockwise/1)
+
     Logger.info("Polygons #{inspect polygons, pretty: true}")
+
     {
       transform_point(json[:start]),
       polygons,

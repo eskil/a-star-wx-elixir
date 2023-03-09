@@ -716,4 +716,22 @@ defmodule Geo do
     # improve this to continuously move outwards a reasonable amount until
     # we're outside.
   end
+
+  @doc """
+  Check if the polygon is clockwise within screen coordinates.
+
+  ## Examples
+      iex> Geo.is_clockwise?([{0, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}])
+      true
+      iex> Geo.is_clockwise?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}])
+      false
+
+  """
+  def is_clockwise?(polygon) do
+    a =
+      polygon
+      |> Enum.chunk_every(2, 1, Enum.slice(polygon, 0, 2))
+      |> Enum.reduce(0, fn [{x1, y1}, {x2, y2}], acc -> acc + (x2 - x1) * (y2 + y1) end)
+    a < 0
+  end
 end
