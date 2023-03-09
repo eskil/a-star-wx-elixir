@@ -69,8 +69,8 @@ defmodule Geo do
   `[]` if there's no intersections.
 
   ## Examples
-      iex> polygon = [{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}]
-      [{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}]
+      iex> polygon = [{0, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}]
+      [{0, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}]
       iex> line = {{1, -1}, {1, 3}}
       {{1, -1}, {1, 3}}
       iex> Geo.intersections(line, polygon)
@@ -332,8 +332,8 @@ defmodule Geo do
 
   ## Examples
       # A vaguely M shaped polygon
-      iex> Geo.classify_vertices([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}])
-      {[{1, 0.5}], [{0, 0}, {0, 1}, {2, 1}, {2, 0}]}
+      iex> Geo.classify_vertices([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}])
+      {[{1, 0.5}], [{0, 0}, {2, 0}, {2, 1}, {0, 1}]}
   """
   def classify_vertices(polygon) do
     {concave, convex} = Enum.reduce(polygon, {0, []}, fn point, {idx, acc} ->
@@ -367,11 +367,11 @@ defmodule Geo do
 
   ## Examples
       # A vaguely M shaped polygon
-      iex> Geo.classify_vertex([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 1)
+      iex> Geo.classify_vertex([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 0)
       :convex
-      iex> Geo.classify_vertex([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 5)
+      iex> Geo.classify_vertex([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 1)
       :neither
-      iex> Geo.classify_vertex([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 2)
+      iex> Geo.classify_vertex([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 4)
       :concave
   """
   # See https://www.david-gouveia.com/pathfinding-on-a-2d-polygonal-map
@@ -406,17 +406,17 @@ defmodule Geo do
 
   ## Examples
       # A vaguely M shaped polygon
-      iex> Geo.is_concave?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 0)
+      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 0)
       false
-      iex> Geo.is_concave?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 1)
+      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 1)
       false
-      iex> Geo.is_concave?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 2)
+      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 2)
+      false
+      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 3)
+      false
+      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 4)
       true
-      iex> Geo.is_concave?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 3)
-      false
-      iex> Geo.is_concave?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 4)
-      false
-      iex> Geo.is_concave?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 5)
+      iex> Geo.is_concave?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 5)
       false
   """
   def is_concave?(polygon, at) do
@@ -438,18 +438,18 @@ defmodule Geo do
 
   ## Examples
       # A vaguely M shaped polygon
-      iex> Geo.is_convex?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 0)
+      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 0)
       true
-      iex> Geo.is_convex?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 1)
-      true
-      iex> Geo.is_convex?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 2)
+      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 1)
       false
-      iex> Geo.is_convex?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 3)
+      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 2)
       true
-      iex> Geo.is_convex?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 4)
+      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 3)
       true
-      iex> Geo.is_convex?([{0, 0}, {0, 1}, {1, 0.5}, {2, 1}, {2, 0}, {1, 0}], 5)
+      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 4)
       false
+      iex> Geo.is_convex?([{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}], 5)
+      true
   """
   def is_convex?(polygon, at) do
     classify_vertex(polygon, at) == :convex
