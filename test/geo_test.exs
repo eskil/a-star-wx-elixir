@@ -1,14 +1,11 @@
 defmodule GeoTest do
   use ExUnit.Case, async: true
 
-  # This should be used in the doctests to keep them readable.
-  # polygon = [{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}]
-
   doctest Geo
 
-  defp box_polygon(), do: [{0, 10}, {10, 10}, {10, 0}, {0, 0}]
-  defp m_polygon(), do: [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]
-  defp mflag_polygon(), do: polygon = [{0, 0}, {10, 0}, {5, 10}, {10, 20}, {0, 20}]
+  # defp box_polygon(), do: [{0, 10}, {10, 10}, {10, 0}, {0, 0}]
+  # defp m_polygon(), do: [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]
+  # defp mflag_polygon(), do: polygon = [{0, 0}, {10, 0}, {5, 10}, {10, 20}, {0, 20}]
 
   ##
   ## Geo.intersects?
