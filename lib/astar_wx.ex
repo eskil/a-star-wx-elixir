@@ -474,7 +474,7 @@ defmodule AstarWx do
       Astar.path(astar)
     end)
 
-    # Curtesy compute and print distance.
+    # Curtesy compute distance
     distance =
       path
       |> Enum.chunk_every(2, 1)
@@ -482,6 +482,7 @@ defmodule AstarWx do
         [a, b], acc -> acc + Vector.distance(a, b)
         _, acc -> acc
       end)
+
     Logger.info("graph extend = #{usec_to_str(graph_usec)} a-star=#{usec_to_str(astar_usec)} distance = #{distance}")
 
     {new_graph, new_vertices, path}
