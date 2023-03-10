@@ -27,134 +27,6 @@ defmodule Geo do
   > ![Order of vertices](graph.png)
   """
 
-  @doc """
-  Checks if a line intersects a polygon.
-
-  This is a bare-minimum function, and for most cases using `intersections/2`
-  will be a better choice.
-
-  ## Params
-  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
-  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
-
-  Returns `true` or `false` wether the line intersects the polygon or not.
-  """
-  def intersects?(polygon, line) do
-    prev_point = List.last(polygon)
-    intersects_helper(polygon, line, prev_point)
-  end
-
-  @doc """
-  Get all intersections of a line with a polygon including their type.
-
-  This function basically calls `line_segment_intersection/2` for every segment
-  of the `polygon` against the `line` and filters the results to only include
-  the list of intersection points.
-
-  ## Params
-  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a
-    polygon. This must be non-closed.
-  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
-  * `opts`
-    * `:allow_points` (default `false`) whether a `on_point` intersection
-      should be considered an intersection or not. This varies from use
-      cases. Eg. when building a polygon, points will be connected and thus
-      intersect if `true`. This may not be the desired result, so `false` won't
-      consider points intersections.
-
-  Returns a list of `{x, y}` tuples indicating where the line intersects, or
-  `[]` if there's no intersections.
-
-  ## Examples
-      iex> polygon = [{0, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}]
-      [{0, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}]
-      iex> line = {{1, -1}, {1, 3}}
-      {{1, -1}, {1, 3}}
-      iex> Geo.intersections(polygon, line)
-      [{1.0, 0.0}]
-      iex> Geo.intersections(polygon, line, allow_points: true)
-      [{1.0, 0.0}, {1.0, 0.5}]
-  """
-  def intersections(polygon, line, opts \\ []) do
-    allow_points = Keyword.get(opts, :allow_points, false)
-    prev_point = List.last(polygon)
-    intersects_helper(polygon, line, prev_point, [])
-    |> Enum.filter(fn
-      {:intersection, _} -> true
-      {:point_intersection, _} -> allow_points
-      _ -> false
-    end)
-    |> Enum.map(fn {_, point} -> point end)
-    |> Enum.dedup
-  end
-
-  @doc """
-  Get first intersections of a line with a polygon.
-
-  The "opposite" of `last_intersection/2`.
-
-  ## Params
-  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
-  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line. The
-    first tuple (`{ax, ay}`) is considered the head of the line and "first" in
-    this context means nearest to that point.
-
-  Returns a `{x, y}` tuples indicating where the line first intersects, or `nil`
-  if there's no intersection.
-  """
-  def first_intersection(polygon, {a, _b} = line) do
-    Enum.min_by(intersections(polygon, line), fn ip ->
-      Vector.distance(a, ip)
-    end, fn ->
-      nil
-    end)
-  end
-
-  @doc """
-  Get last intersections of a line with a polygon.
-
-  The "opposite" of `first_intersection/2`.
-
-  ## Params
-  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
-  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line. The
-     second tuple (`{bx, by}`) is considered the end of the line and "last" in
-     this context means nearest to that point.
-
-  Returns a `{x, y}` tuples indicating where the line last intersects, or nil
-  if there's no intersection.
-  """
-  def last_intersection(polygon, {a, _b} = line) do
-    Enum.max_by(intersections(polygon, line), fn ip ->
-      Vector.distance(a, ip)
-    end, fn ->
-      nil
-    end)
-  end
-
-  defp intersects_helper([], _line, _prev_point) do
-    :nointersection
-  end
-
-  defp intersects_helper([next_point|polygon], line, prev_point) do
-    case line_segment_intersection(line, {prev_point, next_point}) do
-      :parallel -> intersects_helper(polygon, line, next_point)
-      :none -> intersects_helper(polygon, line, next_point)
-      :on_segment -> :on_segment
-      {:intersection, _} = result -> result
-      {:point_intersection, _} = result -> result
-    end
-  end
-
-  defp intersects_helper([], _line, _prev_point, acc) do
-    acc
-  end
-
-  defp intersects_helper([next_point|polygon], line, prev_point, acc) when is_list(acc) do
-    v = line_segment_intersection(line, {prev_point, next_point})
-    intersects_helper(polygon, line, next_point, acc ++ [v])
-  end
-
   # For explanation of a lot of the math here;
   # * https://khorbushko.github.io/article/2021/07/15/the-area-polygon-or-how-to-detect-line-segments-intersection.html
   # * https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect/1968345#1968345
@@ -289,6 +161,134 @@ defmodule Geo do
         (r > 0 and r < 1) and (s > 0 and s < 1)
       end
     end
+  end
+
+  @doc """
+  Checks if a line intersects a polygon.
+
+  This is a bare-minimum function, and for most cases using `intersections/2`
+  will be a better choice.
+
+  ## Params
+  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
+
+  Returns `true` or `false` wether the line intersects the polygon or not.
+  """
+  def intersects?(polygon, line) do
+    prev_point = List.last(polygon)
+    intersects_helper(polygon, line, prev_point)
+  end
+
+  @doc """
+  Get all intersections of a line with a polygon including their type.
+
+  This function basically calls `line_segment_intersection/2` for every segment
+  of the `polygon` against the `line` and filters the results to only include
+  the list of intersection points.
+
+  ## Params
+  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a
+    polygon. This must be non-closed.
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
+  * `opts`
+    * `:allow_points` (default `false`) whether a `on_point` intersection
+      should be considered an intersection or not. This varies from use
+      cases. Eg. when building a polygon, points will be connected and thus
+      intersect if `true`. This may not be the desired result, so `false` won't
+      consider points intersections.
+
+  Returns a list of `{x, y}` tuples indicating where the line intersects, or
+  `[]` if there's no intersections.
+
+  ## Examples
+      iex> polygon = [{0, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}]
+      [{0, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}]
+      iex> line = {{1, -1}, {1, 3}}
+      {{1, -1}, {1, 3}}
+      iex> Geo.intersections(polygon, line)
+      [{1.0, 0.0}]
+      iex> Geo.intersections(polygon, line, allow_points: true)
+      [{1.0, 0.0}, {1.0, 0.5}]
+  """
+  def intersections(polygon, line, opts \\ []) do
+    allow_points = Keyword.get(opts, :allow_points, false)
+    prev_point = List.last(polygon)
+    intersects_helper(polygon, line, prev_point, [])
+    |> Enum.filter(fn
+      {:intersection, _} -> true
+      {:point_intersection, _} -> allow_points
+      _ -> false
+    end)
+    |> Enum.map(fn {_, point} -> point end)
+    |> Enum.dedup
+  end
+
+  @doc """
+  Get first intersections of a line with a polygon.
+
+  The "opposite" of `last_intersection/2`.
+
+  ## Params
+  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line. The
+    first tuple (`{ax, ay}`) is considered the head of the line and "first" in
+    this context means nearest to that point.
+
+  Returns a `{x, y}` tuples indicating where the line first intersects, or `nil`
+  if there's no intersection.
+  """
+  def first_intersection(polygon, {a, _b} = line) do
+    Enum.min_by(intersections(polygon, line), fn ip ->
+      Vector.distance(a, ip)
+    end, fn ->
+      nil
+    end)
+  end
+
+  @doc """
+  Get last intersections of a line with a polygon.
+
+  The "opposite" of `first_intersection/2`.
+
+  ## Params
+  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line. The
+     second tuple (`{bx, by}`) is considered the end of the line and "last" in
+     this context means nearest to that point.
+
+  Returns a `{x, y}` tuples indicating where the line last intersects, or nil
+  if there's no intersection.
+  """
+  def last_intersection(polygon, {a, _b} = line) do
+    Enum.max_by(intersections(polygon, line), fn ip ->
+      Vector.distance(a, ip)
+    end, fn ->
+      nil
+    end)
+  end
+
+  defp intersects_helper([], _line, _prev_point) do
+    :nointersection
+  end
+
+  defp intersects_helper([next_point|polygon], line, prev_point) do
+    case line_segment_intersection(line, {prev_point, next_point}) do
+      :parallel -> intersects_helper(polygon, line, next_point)
+      :none -> intersects_helper(polygon, line, next_point)
+      :on_segment -> :on_segment
+      {:intersection, _} = result -> result
+      {:point_intersection, _} = result -> result
+    end
+  end
+
+  defp intersects_helper([], _line, _prev_point, acc) do
+    acc
+  end
+
+  defp intersects_helper([next_point|polygon], line, prev_point, acc) when is_list(acc) do
+    v = line_segment_intersection(line, {prev_point, next_point})
+    intersects_helper(polygon, line, next_point, acc ++ [v])
   end
 
   @doc """
