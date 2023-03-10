@@ -213,12 +213,12 @@ defmodule AstarWx do
     dc = state.wx_memory_dc
     WxUtils.wx_cls(dc)
 
-    draw_polygons(dc, state.polygon, state.holes)
+    draw_polygons(dc, state)
 
     if state.cursor do
       line = {state.start, state.cursor}
       draw_a_b_line(dc, line, state.polygon, state.holes)
-      draw_cursors(dc, state.start, state.cursor, state.polygon, state.holes)
+      draw_cursors(dc, state)
     end
 
     draw_walk_vertices(dc, state)
@@ -296,25 +296,25 @@ defmodule AstarWx do
   ## Render helper funtions
   ##
 
-  def draw_cursors(dc, start, cursor, polygon, holes) do
+  def draw_cursors(dc, state) do
     light_gray = {211, 211, 211}
     bright_red = {255, 0, 0}
     bright_green = {0, 255, 0}
 
-    WxUtils.wx_crosshair(dc, start, bright_green, size: 6)
+    WxUtils.wx_crosshair(dc, state.start, bright_green, size: 6)
 
-    if Polygon.is_inside?(polygon, cursor) do
-      if Enum.any?(holes, &(Polygon.is_inside?(&1, cursor))) do
-        WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)
+    if Polygon.is_inside?(state.polygon, state.cursor) do
+      if Enum.any?(state.holes, &(Polygon.is_inside?(&1, state.cursor))) do
+        WxUtils.wx_crosshair(dc, state.cursor, light_gray, size: 6)
       else
-        WxUtils.wx_crosshair(dc, cursor, bright_red, size: 6)
+        WxUtils.wx_crosshair(dc, state.cursor, bright_red, size: 6)
       end
     else
-      WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)
+      WxUtils.wx_crosshair(dc, state.cursor, light_gray, size: 6)
     end
   end
 
-  def draw_polygons(dc, polygon, holes) do
+  def draw_polygons(dc, state) do
     blue = {0, 150, 255}
     opaque_blue = {0, 150, 255, 64}
 
@@ -325,14 +325,14 @@ defmodule AstarWx do
 
     :wxDC.setBrush(dc, opaque_blue_brush)
     :wxDC.setPen(dc, blue_pen)
-    :ok = :wxDC.drawPolygon(dc, polygon)
-    for point <- polygon do
+    :ok = :wxDC.drawPolygon(dc, state.polygon)
+    for point <- state.polygon do
       WxUtils.wx_crosshair(dc, point, blue)
     end
 
     :wxDC.setBrush(dc, brush)
     :wxDC.setPen(dc, blue_pen)
-    for hole <- holes do
+    for hole <- state.holes do
       :ok = :wxDC.drawPolygon(dc, hole)
       for point <- hole do
         WxUtils.wx_crosshair(dc, point, blue)
