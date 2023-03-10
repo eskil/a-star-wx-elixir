@@ -72,16 +72,16 @@ defmodule GeoTest do
     line = {{6, 1}, {6, 19}}
     # Sideways M / flag style
     polygon = [{0, 0}, {10, 0}, {5, 10}, {10, 20}, {0, 20}]
-    assert Geo.first_intersection(line, polygon) == {6.0, 8.0}
-    assert Geo.last_intersection(line, polygon) == {6.0, 12.0}
+    assert Geo.first_intersection(polygon, line) == {6.0, 8.0}
+    assert Geo.last_intersection(polygon, line) == {6.0, 12.0}
   end
 
   test "find first/last intersection when there's no intersections" do
     line = {{6, 1}, {6, 3}}
     # Sideways M / flag style
     polygon = [{0, 0}, {10, 0}, {5, 10}, {10, 20}, {0, 20}]
-    assert Geo.first_intersection(line, polygon) == nil
-    assert Geo.last_intersection(line, polygon) == nil
+    assert Geo.first_intersection(polygon, line) == nil
+    assert Geo.last_intersection(polygon, line) == nil
   end
 
   ##

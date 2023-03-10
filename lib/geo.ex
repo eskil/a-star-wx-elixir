@@ -34,8 +34,8 @@ defmodule Geo do
   will be a better choice.
 
   ## Params
-  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
   * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
 
   Returns `true` or `false` wether the line intersects the polygon or not.
   """
@@ -52,9 +52,9 @@ defmodule Geo do
   the list of intersection points.
 
   ## Params
-  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
   * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a
     polygon. This must be non-closed.
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
   * `opts`
     * `:allow_points` (default `false`) whether a `on_point` intersection
       should be considered an intersection or not. This varies from use
@@ -94,15 +94,15 @@ defmodule Geo do
   The "opposite" of `last_intersection/2`.
 
   ## Params
+  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
   * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line. The
     first tuple (`{ax, ay}`) is considered the head of the line and "first" in
     this context means nearest to that point.
-  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
 
   Returns a `{x, y}` tuples indicating where the line first intersects, or `nil`
   if there's no intersection.
   """
-  def first_intersection({a, _b} = line, polygon) do
+  def first_intersection(polygon, {a, _b} = line) do
     Enum.min_by(intersections(polygon, line), fn ip ->
       Vector.distance(a, ip)
     end, fn ->
@@ -116,15 +116,15 @@ defmodule Geo do
   The "opposite" of `first_intersection/2`.
 
   ## Params
+  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
   * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line. The
      second tuple (`{bx, by}`) is considered the end of the line and "last" in
      this context means nearest to that point.
-  * `polygon` a list of points (`[{x, y}, {x, y}, ...]`) describing a polygon.
 
   Returns a `{x, y}` tuples indicating where the line last intersects, or nil
   if there's no intersection.
   """
-  def last_intersection({a, _b} = line, polygon) do
+  def last_intersection(polygon, {a, _b} = line) do
     Enum.max_by(intersections(polygon, line), fn ip ->
       Vector.distance(a, ip)
     end, fn ->
