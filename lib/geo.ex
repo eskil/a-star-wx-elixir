@@ -41,7 +41,7 @@ defmodule Geo do
   """
   def intersects?(polygon, line) do
     prev_point = List.last(polygon)
-    intersects_helper(line, polygon, prev_point)
+    intersects_helper(polygon, line, prev_point)
   end
 
   @doc """
@@ -78,7 +78,7 @@ defmodule Geo do
   def intersections(polygon, line, opts \\ []) do
     allow_points = Keyword.get(opts, :allow_points, false)
     prev_point = List.last(polygon)
-    intersects_helper(line, polygon, prev_point, [])
+    intersects_helper(polygon, line, prev_point, [])
     |> Enum.filter(fn
       {:intersection, _} -> true
       {:point_intersection, _} -> allow_points
@@ -132,27 +132,27 @@ defmodule Geo do
     end)
   end
 
-  defp intersects_helper(_line, [], _prev_point) do
+  defp intersects_helper([], _line, _prev_point) do
     :nointersection
   end
 
-  defp intersects_helper(line, [next_point|polygon], prev_point) do
+  defp intersects_helper([next_point|polygon], line, prev_point) do
     case line_segment_intersection(line, {prev_point, next_point}) do
-      :parallel -> intersects_helper(line, polygon, next_point)
-      :none -> intersects_helper(line, polygon, next_point)
+      :parallel -> intersects_helper(polygon, line, next_point)
+      :none -> intersects_helper(polygon, line, next_point)
       :on_segment -> :on_segment
       {:intersection, _} = result -> result
       {:point_intersection, _} = result -> result
     end
   end
 
-  defp intersects_helper(_line, [], _prev_point, acc) do
+  defp intersects_helper([], _line, _prev_point, acc) do
     acc
   end
 
-  defp intersects_helper(line, [next_point|polygon], prev_point, acc) when is_list(acc) do
+  defp intersects_helper([next_point|polygon], line, prev_point, acc) when is_list(acc) do
     v = line_segment_intersection(line, {prev_point, next_point})
-    intersects_helper(line, polygon, next_point, acc ++ [v])
+    intersects_helper(polygon, line, next_point, acc ++ [v])
   end
 
   # For explanation of a lot of the math here;
