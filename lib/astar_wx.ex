@@ -38,8 +38,8 @@ defmodule AstarWx do
 
     sizer = :wxBoxSizer.new(Wx.wxVERTICAL)
     :wxSizer.add(sizer, panel, [proportion: 1, flag: Wx.wxSHAPED])
-    #:wxSizer.setMinSize(sizer, @size)
-    :wxFrame.setSizer(frame, sizer)
+    :wxSizer.setMinSize(sizer, @size)
+    :wxFrame.setSizerAndFit(frame, sizer)
 
     :wxFrame.show(frame)
 
@@ -235,6 +235,9 @@ defmodule AstarWx do
     dc = state.wx_memory_dc
     WxUtils.wx_cls(dc)
 
+    {w, _h} = :wxPanel.getSize(state.wx_panel)
+    scale = w/ 640
+
     draw_polygons(dc, state)
     draw_a_b_line(dc, state)
     draw_cursors(dc, state)
@@ -244,7 +247,7 @@ defmodule AstarWx do
 
     # Draw
     paint_dc = :wxPaintDC.new(state.wx_panel)
-    #:wxDC.setUserScale(paint_dc, 1.2, 1.2)
+    :wxDC.setUserScale(paint_dc, scale, scale)
     :wxDC.blit(paint_dc, {0, 0}, @size, dc, {0, 0})
     :wxPaintDC.destroy(paint_dc)
 
