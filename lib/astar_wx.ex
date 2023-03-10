@@ -72,7 +72,8 @@ defmodule AstarWx do
       # Where the cursor is, also our stop point for saerch
       cursor: nil,
 
-      polygons: polygons,
+      polygon: polygon,
+      holes: holes,
 
       # This is the list of fixed vertices (from the map) that we will draw
       fixed_walk_vertices: walk_vertices,
@@ -136,7 +137,7 @@ defmodule AstarWx do
                      _wheel_rotation, _wheel_delta, _lines_per_action}}=_event, state
   ) do
     stop = {x, y}
-    {graph, _vertices, path} = get_updated_graph_vertices_path(state.polygons, state.fixed_walk_vertices, state.fixed_walk_graph, state.start, stop)
+    {graph, _vertices, path} = get_updated_graph_vertices_path(state.polygon, state.holes, state.fixed_walk_vertices, state.fixed_walk_graph, state.start, stop)
 
     {:noreply, %{
         state |
@@ -167,7 +168,7 @@ defmodule AstarWx do
   ) do
     Logger.info("click #{inspect {x, y}}")
     stop = {x, y}
-    {graph, _vertices, path} = get_updated_graph_vertices_path(state.polygons, state.fixed_walk_vertices, state.fixed_walk_graph, state.start, stop)
+    {graph, _vertices, path} = get_updated_graph_vertices_path(state.polygon, state.holes, state.fixed_walk_vertices, state.fixed_walk_graph, state.start, stop)
 
     {:noreply, %{
         state |
@@ -212,12 +213,12 @@ defmodule AstarWx do
     dc = state.wx_memory_dc
     WxUtils.wx_cls(dc)
 
-    draw_polygons(dc, state.polygons)
+    draw_polygons(dc, state.polygon, state.holes)
 
     if state.cursor do
       line = {state.start, state.cursor}
-      draw_a_b_line(dc, line, state.polygons)
-      draw_cursors(dc, state.start, state.cursor, state.polygons)
+      draw_a_b_line(dc, line, state.polygon, state.holes)
+      draw_cursors(dc, state.start, state.cursor, state.polygon, state.holes)
     end
 
     draw_walk_vertices(dc, state)
@@ -295,16 +296,14 @@ defmodule AstarWx do
   ## Render helper funtions
   ##
 
-  def draw_cursors(dc, start, cursor, polygons) do
+  def draw_cursors(dc, start, cursor, polygon, holes) do
     light_gray = {211, 211, 211}
     bright_red = {255, 0, 0}
     bright_green = {0, 255, 0}
 
-    {main, holes} = Scene.classify_polygons(polygons)
-
     WxUtils.wx_crosshair(dc, start, bright_green, size: 6)
 
-    if Polygon.is_inside?(main, cursor) do
+    if Polygon.is_inside?(polygon, cursor) do
       if Enum.any?(holes, &(Polygon.is_inside?(&1, cursor))) do
         WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)
       else
@@ -315,7 +314,7 @@ defmodule AstarWx do
     end
   end
 
-  def draw_polygons(dc, polygons) do
+  def draw_polygons(dc, polygon, holes) do
     blue = {0, 150, 255}
     opaque_blue = {0, 150, 255, 64}
 
@@ -324,20 +323,18 @@ defmodule AstarWx do
     brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxSOLID}])
     opaque_blue_brush = :wxBrush.new(opaque_blue, [{:style, Wx.wxSOLID}])
 
-    {main, holes} = Scene.classify_polygons(polygons)
-
     :wxDC.setBrush(dc, opaque_blue_brush)
     :wxDC.setPen(dc, blue_pen)
-    :ok = :wxDC.drawPolygon(dc, main)
-    for point <- main do
+    :ok = :wxDC.drawPolygon(dc, polygon)
+    for point <- polygon do
       WxUtils.wx_crosshair(dc, point, blue)
     end
 
     :wxDC.setBrush(dc, brush)
     :wxDC.setPen(dc, blue_pen)
-    for polygon <- holes do
-      :ok = :wxDC.drawPolygon(dc, polygon)
-      for point <- polygon do
+    for hole <- holes do
+      :ok = :wxDC.drawPolygon(dc, hole)
+      for point <- hole do
         WxUtils.wx_crosshair(dc, point, blue)
       end
     end
@@ -365,7 +362,7 @@ defmodule AstarWx do
     :wxBrush.destroy(brush)
   end
 
-  def draw_a_b_line(dc, {a, b}=line, polygons) do
+  def draw_a_b_line(dc, {a, b}=line, polygon, holes) do
     brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxTRANSPARENT}])
     :wxDC.setBrush(dc, brush)
 
@@ -375,17 +372,15 @@ defmodule AstarWx do
     bright_green = {0, 255, 0}
     bright_green_pen = :wxPen.new(bright_green, [{:width,  1}, {:style, Wx.wxSOLID}])
 
-    {main, holes} = Scene.classify_polygons(polygons)
-
-    if Polygon.is_line_of_sight?(main, holes, line) do
+    if Polygon.is_line_of_sight?(polygon, holes, line) do
       :wxDC.setPen(dc, bright_green_pen)
     else
       :wxDC.setPen(dc, light_gray_pen)
     end
     :ok = :wxDC.drawLine(dc, a, b)
 
-    intersections = for {_name, polygon} <- polygons do
-      Polygon.intersections(polygon, line)
+    intersections = for poly <- [polygon] ++ holes do
+      Polygon.intersections(poly, line)
     end
     |> List.flatten
     |> Enum.sort(fn ia, ib ->
@@ -463,12 +458,9 @@ defmodule AstarWx do
     "#{usec/1_000_000}s"
   end
 
-  def get_updated_graph_vertices_path(polygons, vertices, graph, start, stop) do
+  def get_updated_graph_vertices_path(polygon, holes, vertices, graph, start, stop) do
     line = {start, stop}
-    {main, holes} = Scene.classify_polygons(polygons)
-    np = Polygon.nearest_point(main, holes, line)
-
-    {polygon, holes} = Scene.classify_polygons(polygons)
+    np = Polygon.nearest_point(polygon, holes, line)
     {graph_usec, {new_graph, new_vertices}} = :timer.tc(fn -> PolygonMap.extend_graph(polygon, holes, graph, vertices, [start, np]) end)
 
     {astar_usec, path} = :timer.tc(fn ->

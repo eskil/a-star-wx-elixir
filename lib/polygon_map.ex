@@ -5,7 +5,7 @@ defmodule PolygonMap do
   A polygon map is a set of a primary (main, boundary...) polygon that outlines
   the world, plus a list of polygons that make "holes" in the main polygon.
 
-  See `Polygon` for details on how polygons.
+  See `Polygon` for details on how polygons are composed.
 
   The use case is eg. making a map with obstacles, and use the `Astar` module
   to find the shortest path between points in the map.
