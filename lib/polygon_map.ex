@@ -2,8 +2,8 @@ defmodule PolygonMap do
   @moduledoc """
   Utility functions to work on a polygon map.
 
-  A polygon map is a set of a primary (main, boundary...) polygon that outlines
-  the world, plus a list of polygons that make "holes" in the main polygon.
+  A polygon map is a set of a primary polygon - the main boundary that outlines
+  the world - and a list of polygons that make "holes" in the main polygon.
 
   See `Polygon` for details on how polygons are composed.
 
@@ -14,12 +14,12 @@ defmodule PolygonMap do
   require Logger
 
   @doc """
-  Given a list of polygons (main, & holes), returns a list of vertices.
+  Given a polygon map (main, & holes), returns a list of vertices.
 
   The vertices are the main polygon's concave vertices and the convex ones of
   the holes.
   """
-  def get_walk_vertices(polygon, holes) do
+  def get_vertices(polygon, holes) do
     {concave, _convex} = Polygon.classify_vertices(polygon)
     convex = Enum.reduce(holes, [], fn points, acc ->
       {_concave, convex} = Polygon.classify_vertices(points)
@@ -31,9 +31,22 @@ defmodule PolygonMap do
 
   @doc """
   Given a polygon map (main & holes) and list of vertices, makes the graph.
+
+  ## Params
+  * `cost_fun`, a `node, node :: cost` function, defaults to `Vector.distance`
+
+  TODO: this should ideally take `line_of_sight` as a function so users can
+  customise which vertices can reach each other. But for now, users can make
+  the graph themselves just as easily.
   """
-  def create_walk_graph(polygon, holes, vertices) do
-    get_edges(polygon, holes, vertices, vertices)
+  def create_graph(polygon, holes, vertices, cost_fun \\ nil)
+
+  def create_graph(polygon, holes, vertices, nil) do
+    create_graph(polygon, holes, vertices, &Vector.distance/2)
+  end
+
+  def create_graph(polygon, holes, vertices, cost_fun) do
+    get_edges(polygon, holes, vertices, vertices, cost_fun)
   end
 
   @doc """
@@ -46,28 +59,32 @@ defmodule PolygonMap do
 
   ## Params
   * `polygons`, a `%{main: [...], hole: [...], hole2: [...]}` polygon map.
-  * `graph`, the fixed graph, eg. created via `create_walk_graph/2`.
+  * `graph`, the fixed graph, eg. created via `create_graph/2`.
   * `vertices` the nodes used to create `graph`.
   * `points` a list of coordinates, `[{x, y}, {x, y}...]`, to extend
+  * `cost_fun`, a `node, node :: cost` function, defaults to `Vector.distance`
 
+  Returns an extended graph plus the combined list of vertices and new points,
+  `{new_graph, new_vertices}`.
   """
-  # TODO: move to a polygon_map.ex
-  def extend_graph(polygon, holes, graph, vertices, points) do
+  def extend_graph(graph, polygon, holes, vertices, points, cost_fun \\ nil)
 
+  def extend_graph(graph, polygon, holes, vertices, points, nil) do
+    extend_graph(graph, polygon, holes, vertices, points, &Vector.distance/2)
+  end
+
+  def extend_graph(graph, polygon, holes, vertices, points, cost_fun) do
     # To extend the graph `graph` made up up `vertices` with new points
     # `points`, we need to find three sets of edges (sub-graphs). The ones from
     # the new points to the existing vertices, vice-versa, and between the new
     # points.
-    set_a = get_edges(polygon, holes, points, vertices)
-    set_b = get_edges(polygon, holes, vertices, points)
-    set_c = get_edges(polygon, holes, points, points)
-    # Logger.info("set_a, points to vertices = #{inspect set_a, pretty: true}")
-    # Logger.info("set_b, points to vertices = #{inspect set_b, pretty: true}")
-    # Logger.info("set_c, points to points = #{inspect set_c, pretty: true}")
+    set_a = get_edges(polygon, holes, points, vertices, cost_fun)
+    set_b = get_edges(polygon, holes, vertices, points, cost_fun)
+    set_c = get_edges(polygon, holes, points, points, cost_fun)
 
     # Merge the three new sub-graphs into graph. This uses Map.merge with a
-    # merge func that combines values for identical keys (basically extend
-    # them) and dedupes.
+    # merge func that combines values for identical keys to extend them instead
+    # of replacing, and dedupes.
     merge_fun = fn _k, v1, v2 ->
       Enum.dedup(v1 ++ v2)
     end
@@ -81,8 +98,7 @@ defmodule PolygonMap do
   end
 
   @doc """
-  Find the nearest point for the given line if it's outside the map or in a
-  hole.
+  Find the nearest point on the line that is inside the map and outside a hole.
 
   ## Params
   * `polygon`, a list of `{x, y}` vertices. This is the main boundary map.
@@ -176,9 +192,66 @@ defmodule PolygonMap do
     # we're outside.
   end
 
-  defp get_edges(polygon, holes, points_a, points_b) do
-    cost_fun = fn a, b -> Vector.distance(a, b) end
-    is_reachable? = fn a, b -> Polygon.is_line_of_sight?(polygon, holes, {a, b}) end
+  @doc """
+  Checks if there's a line-of-sight (LOS) from `start` to `stop` within the map.
+
+  ## Params
+  * `polygon`, a list of `{x, y}` vertices. This is the main boundary map.
+  * `holes`, a list of lists of `{x, y}` vertices. These are holes within
+    `polygon`.
+  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
+
+  Returns `true` if there's a line-of-sight and none of the main polygon or
+  holes obstruct the path. `false` otherwise.
+
+  As the map consists of a boundary polygon with holes, LOS implies a few things;
+
+  * If either `start` or `stop` is outside `polygon`, the result will be
+    false. Even if both are outside, that's not considered a valid LOS.
+  * If the distance between `start` and `stop` is tiny (< 0.1 arbitrarily), LOS
+    is true.
+  * Next, it checks that the line between `start` and `stop` has no
+    intersections with `polygon` or `holes`.
+  * Finally it checks if the middle of the line between `start` and `stop` is
+    inside `polygon` and outside all holes - this ensures that corner-to-corner
+    across a hole isn't considered a LOS.
+  """
+  def is_line_of_sight?(polygon, holes, line) do
+    {start, stop} = line
+    cond do
+      not Polygon.is_inside?(polygon, start) or not Polygon.is_inside?(polygon, stop) -> false
+      Vector.distance(start, stop) < 0.1 -> true
+      not Enum.all?([polygon] ++ holes, fn points -> is_line_of_sight_helper(points, line) end) -> false
+      true ->
+          # This part ensures that two vertices across from each other are not
+          # considered LOS. Without this, eg. a box-shaped hole would have
+          # opposing corners be a LOS, except that the middle of the line falls
+          # inside the hole per this check.
+          middle = Vector.div(Vector.add(start, stop), 2)
+          cond do
+            not Polygon.is_inside?(polygon, middle) -> false
+            Enum.all?(holes, fn hole -> Polygon.is_outside?(hole, middle, allow_border: false) end) -> true
+            true -> false
+          end
+    end
+  end
+
+  defp is_line_of_sight_helper(polygon, {x, y}=line) do
+    # We get all intersections and reject the ones that are identical to the
+    # line. This allows us to enable "allow_points: true", but only see
+    # intersections with other lines and _other_ polygon vertices (points).
+    # This is necessary since we're always calling this with a line between two
+    # polygon vertices. Without this, having "allow_points: true", every such
+    # line would immediately intersect at both ends.
+
+    Polygon.intersections(polygon, line, allow_points: true)
+    |> Enum.map(fn {x, y} -> {round(x), round(y)} end)
+    |> Enum.reject(fn p -> p == x or p == y end)
+    == []
+  end
+
+  defp get_edges(polygon, holes, points_a, points_b, cost_fun) do
+    is_reachable? = fn a, b -> is_line_of_sight?(polygon, holes, {a, b}) end
 
     # O(n^2) check all vertice combos for reachability...
     {_, all_edges} =

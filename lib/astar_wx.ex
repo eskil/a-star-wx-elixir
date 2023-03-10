@@ -49,11 +49,11 @@ defmodule AstarWx do
     Logger.info("starting timer #{slice}ms")
     timer_ref = Process.send_after(self(), :tick, slice)
 
-    {start, polygons} = Scene.load("complex")
+    {start, polygons} = Scene.load("quickstart")
     {polygon, holes} = Scene.classify_polygons(polygons)
 
-    walk_vertices = PolygonMap.get_walk_vertices(polygon, holes)
-    walk_graph = PolygonMap.create_walk_graph(polygon, holes, walk_vertices)
+    walk_vertices = PolygonMap.get_vertices(polygon, holes)
+    walk_graph = PolygonMap.create_graph(polygon, holes, walk_vertices)
 
     Logger.info("walk graphs = #{inspect walk_graph, pretty: true}")
 
@@ -378,7 +378,7 @@ defmodule AstarWx do
     start = state.start
     stop = state.cursor
     line = {state.start, state.cursor}
-    if Polygon.is_line_of_sight?(state.polygon, state.holes, line) do
+    if PolygonMap.is_line_of_sight?(state.polygon, state.holes, line) do
       :wxDC.setPen(dc, bright_green_pen)
     else
       :wxDC.setPen(dc, light_gray_pen)
@@ -467,7 +467,10 @@ defmodule AstarWx do
   def get_updated_graph_vertices_path(polygon, holes, vertices, graph, start, stop) do
     line = {start, stop}
     np = PolygonMap.nearest_point(polygon, holes, line)
-    {graph_usec, {new_graph, new_vertices}} = :timer.tc(fn -> PolygonMap.extend_graph(polygon, holes, graph, vertices, [start, np]) end)
+
+    {graph_usec, {new_graph, new_vertices}} = :timer.tc(fn ->
+      PolygonMap.extend_graph(graph, polygon, holes, vertices, [start, np])
+    end)
 
     {astar_usec, path} = :timer.tc(fn ->
       astar = Astar.search(new_graph, start, np, fn a, b -> Vector.distance(a, b) end)

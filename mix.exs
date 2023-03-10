@@ -14,6 +14,15 @@ defmodule AstarWx.MixProject do
         "coveralls.detail": :test,
         "coveralls.post": :test,
         "coveralls.html": :test
+      ],
+
+      # Docs
+      name: "AstarWx",
+      source_url: "https://github.com/eskil/a-star-wx-elixir",
+      homepage_url: "https://github.com/eskil/a-star-wx-elixir",
+      docs: [
+        main: "Quickstart",
+        extras: ["doc/Quickstart.md"]
       ]
     ]
   end

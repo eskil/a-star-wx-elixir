@@ -156,7 +156,7 @@ defmodule Polygon do
   end
 
   @doc """
-  Split polygon into concave and convex vertices.
+  Split a polygon into concave and convex vertices.
 
   When doing pathfinding, there will typically be a outer polygon bounding the
   "world" and multiple inner polygons describing "holes". The path can only be
@@ -371,64 +371,6 @@ defmodule Polygon do
 
   def is_outside?(polygon, point, opts) do
     not is_inside?(polygon, point, opts)
-  end
-
-  @doc """
-  Checks if there's a line-of-sight (LOS) from `start` to `stop` within the map.
-
-  ## Params
-  * `polygon`, a list of `{x, y}` vertices. This is the main boundary map.
-  * `holes`, a list of lists of `{x, y}` vertices. These are holes within
-    `polygon`.
-  * `line` a tuple of points (`{{ax, ay}, {bx, by}}`) describing a line.
-
-  Returns `true` if there's a line-of-sight and none of the main polygon or
-  holes obstruct the path. `false` otherwise.
-
-  As the map consists of a boundary polygon with holes, LOS implies a few things;
-
-  * If either `start` or `stop` is outside `polygon`, the result will be
-    false. Even if both are outside, that's not considered a valid LOS.
-  * If the distance between `start` and `stop` is tiny (< 0.1 arbitrarily), LOS
-    is true.
-  * Next, it checks that the line between `start` and `stop` has no
-    intersections with `polygon` or `holes`.
-  * Finally it checks if the middle of the line between `start` and `stop` is
-    inside `polygon` and outside all holes - this ensures that corner-to-corner
-    across a hole isn't considered a LOS.
-  """
-  def is_line_of_sight?(polygon, holes, line) do
-    {start, stop} = line
-    cond do
-      not is_inside?(polygon, start) or not is_inside?(polygon, stop) -> false
-      Vector.distance(start, stop) < 0.1 -> true
-      not Enum.all?([polygon] ++ holes, fn points -> is_line_of_sight_helper(points, line) end) -> false
-      true ->
-          # This part ensures that two vertices across from each other are not
-          # considered LOS. Without this, eg. a box-shaped hole would have
-          # opposing corners be a LOS, except that the middle of the line falls
-          # inside the hole per this check.
-          middle = Vector.div(Vector.add(start, stop), 2)
-          cond do
-            not is_inside?(polygon, middle) -> false
-            Enum.all?(holes, fn hole -> is_outside?(hole, middle, allow_border: false) end) -> true
-            true -> false
-          end
-    end
-  end
-
-  defp is_line_of_sight_helper(polygon, {x, y}=line) do
-    # We get all intersections and reject the ones that are identical to the
-    # line. This allows us to enable "allow_points: true", but only see
-    # intersections with other lines and _other_ polygon vertices (points).
-    # This is necessary since we're always calling this with a line between two
-    # polygon vertices. Without this, having "allow_points: true", every such
-    # line would immediately intersect at both ends.
-
-    intersections(polygon, line, allow_points: true)
-    |> Enum.map(fn {x, y} -> {round(x), round(y)} end)
-    |> Enum.reject(fn p -> p == x or p == y end)
-    == []
   end
 
   @doc """
