@@ -25,10 +25,7 @@ defmodule Geo do
   >
   > `polygon = [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]`
   > ![Order of vertices](graph.png)
-
   """
-
-  # TODO: line/polygon oder is inconsistent
 
   @doc """
   Checks if a line intersects a polygon.
@@ -42,7 +39,7 @@ defmodule Geo do
 
   Returns `true` or `false` wether the line intersects the polygon or not.
   """
-  def intersects?(line, polygon) do
+  def intersects?(polygon, line) do
     prev_point = List.last(polygon)
     intersects_helper(line, polygon, prev_point)
   end
@@ -73,12 +70,12 @@ defmodule Geo do
       [{0, 0}, {2, 0}, {2, 1}, {1, 0.5}, {0, 1}]
       iex> line = {{1, -1}, {1, 3}}
       {{1, -1}, {1, 3}}
-      iex> Geo.intersections(line, polygon)
+      iex> Geo.intersections(polygon, line)
       [{1.0, 0.0}]
-      iex> Geo.intersections(line, polygon, allow_points: true)
+      iex> Geo.intersections(polygon, line, allow_points: true)
       [{1.0, 0.0}, {1.0, 0.5}]
   """
-  def intersections(line, polygon, opts \\ []) do
+  def intersections(polygon, line, opts \\ []) do
     allow_points = Keyword.get(opts, :allow_points, false)
     prev_point = List.last(polygon)
     intersects_helper(line, polygon, prev_point, [])
@@ -106,7 +103,7 @@ defmodule Geo do
   if there's no intersection.
   """
   def first_intersection({a, _b} = line, polygon) do
-    Enum.min_by(intersections(line, polygon), fn ip ->
+    Enum.min_by(intersections(polygon, line), fn ip ->
       Vector.distance(a, ip)
     end, fn ->
       nil
@@ -128,7 +125,7 @@ defmodule Geo do
   if there's no intersection.
   """
   def last_intersection({a, _b} = line, polygon) do
-    Enum.max_by(intersections(line, polygon), fn ip ->
+    Enum.max_by(intersections(polygon, line), fn ip ->
       Vector.distance(a, ip)
     end, fn ->
       nil
@@ -556,7 +553,7 @@ defmodule Geo do
     end
   end
 
-  defp is_line_of_sight_helper(points, {x, y}=line) do
+  defp is_line_of_sight_helper(polygon, {x, y}=line) do
     # We get all intersections and reject the ones that are identical to the
     # line. This allows us to enable "allow_points: true", but only see
     # intersections with other lines and _other_ polygon vertices (points).
@@ -565,7 +562,7 @@ defmodule Geo do
     # line would immediately intersect at both ends.
 
     # TODO: line/polygon oder is inconsistent
-    intersections(line, points, allow_points: true)
+    intersections(polygon, line, allow_points: true)
     |> Enum.map(fn {x, y} -> {round(x), round(y)} end)
     |> Enum.reject(fn p -> p == x or p == y end)
     == []

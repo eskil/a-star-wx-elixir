@@ -15,28 +15,28 @@ defmodule GeoTest do
     line = {{5, 5}, {15, 15}}
     # Box
     polygon = [{0, 10}, {10, 10}, {10, 0}, {0, 0}]
-    assert Geo.intersects?(line, polygon) == {:point_intersection, {10.0, 10.0}}
+    assert Geo.intersects?(polygon, line) == {:point_intersection, {10.0, 10.0}}
   end
 
   test "intersects? detects edge intersection" do
     line = {{5, 5}, {5, 15}}
     # Box
     polygon = [{0, 10}, {10, 10}, {10, 0}, {0, 0}]
-    assert Geo.intersects?(line, polygon) == {:intersection, {5.0, 10.0}}
+    assert Geo.intersects?(polygon, line) == {:intersection, {5.0, 10.0}}
   end
 
   test "intersects? detects no intersection" do
     line = {{20, 20}, {30, 30}}
     # Box
     polygon = [{0, 10}, {10, 10}, {10, 0}, {0, 0}]
-    assert Geo.intersects?(line, polygon) == :nointersection
+    assert Geo.intersects?(polygon, line) == :nointersection
   end
 
   test "intersects? detects segment" do
     line = {{1, 10}, {9, 10}}
     # Box
     polygon = [{0, 10}, {10, 10}, {10, 0}]
-    assert Geo.intersects?(line, polygon) == :on_segment
+    assert Geo.intersects?(polygon, line) == :on_segment
   end
 
   ##
@@ -47,21 +47,21 @@ defmodule GeoTest do
     line = {{6, 1}, {6, 19}}
     # Sideways M / flag style
     polygon = [{0, 0}, {10, 0}, {5, 10}, {10, 20}, {0, 20}]
-    assert Geo.intersections(line, polygon) == [{6.0, 8.0}, {6.0, 12.0}]
+    assert Geo.intersections(polygon, line) == [{6.0, 8.0}, {6.0, 12.0}]
   end
 
   test "can get multiple intersections when there's no intersections" do
     line = {{6, 1}, {6, 3}}
     # Sideways M / flag style
     polygon = [{0, 0}, {10, 0}, {5, 10}, {10, 20}, {0, 20}]
-    assert Geo.intersections(line, polygon) == []
+    assert Geo.intersections(polygon, line) == []
   end
 
   test "intersections when it's on segment" do
     line = {{0, 1}, {0, 3}}
     # Sideways M / flag style
     polygon = [{0, 0}, {10, 0}, {5, 10}, {10, 20}, {0, 20}]
-    assert Geo.intersections(line, polygon) == []
+    assert Geo.intersections(polygon, line) == []
   end
 
   ##
