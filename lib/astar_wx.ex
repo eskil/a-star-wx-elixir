@@ -214,12 +214,8 @@ defmodule AstarWx do
     WxUtils.wx_cls(dc)
 
     draw_polygons(dc, state)
-
-    if state.cursor do
-      draw_a_b_line(dc, state)
-      draw_cursors(dc, state)
-    end
-
+    draw_a_b_line(dc, state)
+    draw_cursors(dc, state)
     draw_walk_vertices(dc, state)
     draw_walk_graph(dc, state)
     draw_walk_path(dc, state)
@@ -295,6 +291,10 @@ defmodule AstarWx do
   ## Render helper funtions
   ##
 
+  def draw_cursors(_dc, %{cursor: nil}=_state) do
+    :ok
+  end
+
   def draw_cursors(dc, state) do
     light_gray = {211, 211, 211}
     bright_red = {255, 0, 0}
@@ -359,6 +359,10 @@ defmodule AstarWx do
 
     :wxPen.destroy(blue_pen)
     :wxBrush.destroy(brush)
+  end
+
+  def draw_a_b_line(_dc, %{cursor: nil}=_state) do
+    :ok
   end
 
   def draw_a_b_line(dc, state) do
