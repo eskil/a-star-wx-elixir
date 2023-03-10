@@ -4,6 +4,33 @@ defmodule Astar do
   Implementation of [A-star search
   algorithm](https://en.wikipedia.org/wiki/A*_search_algorithm) to find the
   shortest path in 2D polygon maps.
+
+  The basic usage is;
+
+  ```
+  # computes the heuristic cost between two nodes
+  def heur_fun(node_a, node_b) do
+    ...
+  end
+
+  # Define a graph
+  graph = %{
+    node_1 => [
+    {node_2, cost_1_2}, {node_3, cost_1_3},
+    ],
+    node_2 => [
+      {node_3, cost_2_3}, {node_4, cost_2_4},
+    ],
+    ...
+  }
+
+  # Do A-star search
+  state = Astar.search(graph, node_1, node_z, &heur_fun/2)
+
+  # Extract path
+  path = Astart.path(state)
+  [node1, ..., node_z]
+  ```
   """
 
   @doc """
@@ -15,10 +42,10 @@ defmodule Astar do
   * `start` the node from which to start
   * `stop` the node at which to end
   * `heur_fun` the heuristic function used to estimate cost from a node in
-    `graoh` to `stop`. It takes two nodes and returns a cost that should be
+    `graph` to `stop`. It takes two nodes and returns a cost that should be
     comparable with itself for ordering. `node, node :: term`.
 
-  Returns the algorithms internal state which can be passed to `get_path/1` to
+  Returns the algorithms internal state which can be passed to `path/1` to
   obtain the actual path.
   """
 
@@ -129,8 +156,13 @@ defmodule Astar do
   end
 
   @doc """
-  Get the path from the state returned by `find_path/4`.
+  Get the path from the state returned by `search/4`.
 
+  ## Params
+
+  * `state` the a-star state returned by `search/4`
+
+  Returns the path.
   """
   def path(state) do
     next = state.shortest_path_tree[state.stop]
