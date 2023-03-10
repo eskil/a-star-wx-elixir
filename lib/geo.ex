@@ -21,9 +21,9 @@ defmodule Geo do
   > They must be in clockwise order in screen coordinates, otherwise
   > convex/concave classification will be inversed as it traverses the egdes.
   >
-  > Here's a crude drawing as an example of the M shaped polygon used for many tests/docs.
+  > Here's a crude drawing of an example of the M shaped polygon used for many tests/docs.
   >
-  > `polygon =
+  > `polygon = [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]`
   > ![Order of vertices](graph.png)
 
   """

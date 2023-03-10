@@ -1,4 +1,27 @@
 defmodule Astar do
+  @moduledoc """
+
+  Implementation of [A-star search
+  algorithm](https://en.wikipedia.org/wiki/A*_search_algorithm) to find the
+  shortest path in 2D polygon maps.
+  """
+
+  @doc """
+  Find shortest path in `graph` from `start` to `stop`.
+
+  ## Params
+
+  * `graph` a map of node to a list of nodes and cost tuples.
+  * `start` the node from which to start
+  * `stop` the node at which to end
+  * `heur_fun` the heuristic function used to estimate cost from a node in
+    `graoh` to `stop`. It takes two nodes and returns a cost that should be
+    comparable with itself for ordering. `node, node :: term`.
+
+  Returns the algorithms internal state which can be passed to `get_path/1` to
+  obtain the actual path.
+  """
+
   require Logger
 
   def find_path(graph, start, stop, heur_fun) do
@@ -48,7 +71,7 @@ defmodule Astar do
     cond do
       # This should be an option - terminate when we've found _a_ path to the end.
       # current == state.stop ->
-      #   # Logger.info("stop, spt = #{inspect spt, pretty: true}")
+      #   Logger.info("stop, spt = #{inspect spt, pretty: true}")
       #   %{state | shortest_path_tree: spt}
       true ->
         edges = Map.get(state.graph, current, [])
@@ -82,7 +105,7 @@ defmodule Astar do
                   Map.put(g_cost, node, shortest_distance_from_start),
                   Map.put(f_cost, node, total_distance),
                 }
-              shortest_distance_from_start < Map.get(g_cost, current, 0) and Map.get(spt, node) == nil ->
+              shortest_distance_from_start < Map.get(g_cost, node, 0) and Map.get(spt, node) == nil ->
                 {
                   Map.put(frontier, node, current),
                   queue,
@@ -107,6 +130,10 @@ defmodule Astar do
     end
   end
 
+  @doc """
+  Get the path from the state returned by `find_path/4`.
+
+  """
   def get_path(state) do
     next = state.shortest_path_tree[state.stop]
     get_path(state, state.start, next, [state.stop])
