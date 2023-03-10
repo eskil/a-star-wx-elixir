@@ -46,8 +46,8 @@ defmodule AstarTest do
   end
 
   test "a-star 101" do
-    state = Astar.find_path(graph_101(), "a", "z", &heur_101/2)
-    path = Astar.get_path(state)
+    state = Astar.search(graph_101(), "a", "z", &heur_101/2)
+    path = Astar.path(state)
     assert path == ["a", "c", "d", "e", "z"]
   end
 
@@ -78,9 +78,63 @@ defmodule AstarTest do
   end
 
   test "a-star loop" do
-    state = Astar.find_path(graph_101_loops(), "a", "z", &heur_101/2)
-    IO.puts inspect state, pretty: true
-    path = Astar.get_path(state)
+    state = Astar.search(graph_101_loops(), "a", "z", &heur_101/2)
+    path = Astar.path(state)
     assert path == ["a", "c", "d", "e", "z"]
+  end
+
+  test "a-star stop early" do
+    # Add a cheap route from a->z
+    graph = graph_101()
+    a_edges = graph["a"]
+    graph = Map.replace(graph, "a", a_edges ++ [{"z", 4}])
+
+    state = Astar.search(graph, "a", "z", &heur_101/2)
+    path = Astar.path(state)
+    assert path == ["a", "z"]
+    # Assert we don't explore too far
+    assert Enum.sort(Map.keys(state.g_cost)) == ["b", "c", "z"]
+  end
+
+  def graph_long_way() do
+    %{
+      "a" => [
+        {"b", 1}, {"z", 10},
+      ],
+      "b" => [
+        {"c", 1},
+      ],
+      "c" => [
+        {"d", 1},
+      ],
+      "d" => [
+        {"e", 1},
+      ],
+      "e" => [
+        {"f", 1},
+      ],
+      "f" => [
+        {"z", 1},
+      ],
+    }
+  end
+
+  # Function that computes the heuristic from `node, node :: cost`.
+  def heur_long_way(from, to) do
+    %{
+      "a" => %{"z" => 6},
+      "b" => %{"z" => 5},
+      "c" => %{"z" => 4},
+      "d" => %{"z" => 3},
+      "e" => %{"z" => 2},
+      "f" => %{"z" => 1},
+      "z" => %{"z" => 0},
+    }[from][to]
+  end
+
+  test "a-star long way" do
+    state = Astar.search(graph_long_way(), "a", "z", &heur_long_way/2)
+    path = Astar.path(state)
+    assert path == ["a", "b", "c", "d", "e", "f", "z"]
   end
 end

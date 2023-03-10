@@ -24,7 +24,7 @@ defmodule Astar do
 
   require Logger
 
-  def find_path(graph, start, stop, heur_fun) do
+  def search(graph, start, stop, heur_fun) do
     # Logger.info("----------------------------------------- A-star")
     # Logger.info("graph = #{inspect graph, pretty: true}")
     queue = [start]
@@ -69,10 +69,8 @@ defmodule Astar do
     spt = Map.put(state.shortest_path_tree, current, Map.get(state.frontier, current))
 
     cond do
-      # This should be an option - terminate when we've found _a_ path to the end.
-      # current == state.stop ->
-      #   Logger.info("stop, spt = #{inspect spt, pretty: true}")
-      #   %{state | shortest_path_tree: spt}
+      current == state.stop ->
+        %{state | shortest_path_tree: spt}
       true ->
         edges = Map.get(state.graph, current, [])
 
@@ -134,22 +132,22 @@ defmodule Astar do
   Get the path from the state returned by `find_path/4`.
 
   """
-  def get_path(state) do
+  def path(state) do
     next = state.shortest_path_tree[state.stop]
-    get_path(state, state.start, next, [state.stop])
+    path(state, state.start, next, [state.stop])
     |> Enum.reverse
   end
 
-  defp get_path(_state, _start, nil, acc) do
+  defp path(_state, _start, nil, acc) do
     acc
   end
 
-  defp get_path(_state, start, start, acc) do
+  defp path(_state, start, start, acc) do
     acc ++ [start]
   end
 
-  defp get_path(state, start, node, acc) do
+  defp path(state, start, node, acc) do
     next = state.shortest_path_tree[node]
-    get_path(state, start, next, acc ++ [node])
+    path(state, start, next, acc ++ [node])
   end
 end

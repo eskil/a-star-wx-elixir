@@ -470,8 +470,8 @@ defmodule AstarWx do
     {graph_usec, {new_graph, new_vertices}} = :timer.tc(fn -> extend_graph(polygons, graph, vertices, [start, np]) end)
 
     {astar_usec, path} = :timer.tc(fn ->
-      astar = Astar.find_path(new_graph, start, np, fn a, b -> Vector.distance(a, b) end)
-      Astar.get_path(astar)
+      astar = Astar.search(new_graph, start, np, fn a, b -> Vector.distance(a, b) end)
+      Astar.path(astar)
     end)
 
     # Curtesy compute and print distance.
