@@ -466,7 +466,7 @@ defmodule AstarWx do
 
   def get_updated_graph_vertices_path(polygon, holes, vertices, graph, start, stop) do
     line = {start, stop}
-    np = Polygon.nearest_point(polygon, holes, line)
+    np = PolygonMap.nearest_point(polygon, holes, line)
     {graph_usec, {new_graph, new_vertices}} = :timer.tc(fn -> PolygonMap.extend_graph(polygon, holes, graph, vertices, [start, np]) end)
 
     {astar_usec, path} = :timer.tc(fn ->
