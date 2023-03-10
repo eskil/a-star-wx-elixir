@@ -383,8 +383,8 @@ defmodule AstarWx do
     end
     :ok = :wxDC.drawLine(dc, a, b)
 
-    intersections = for {_name, points} <- polygons do
-      Geo.intersections(line, points)
+    intersections = for {_name, polygon} <- polygons do
+      Geo.intersections(polygon, line)
     end
     |> List.flatten
     |> Enum.sort(fn ia, ib ->
