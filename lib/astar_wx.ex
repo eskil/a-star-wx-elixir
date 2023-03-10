@@ -50,9 +50,10 @@ defmodule AstarWx do
     timer_ref = Process.send_after(self(), :tick, slice)
 
     {start, polygons} = Scene.load("complex")
+    {polygon, holes} = Scene.classify_polygons(polygons)
 
-    walk_vertices = get_walk_vertices(polygons)
-    walk_graph = create_walk_graph(polygons, walk_vertices)
+    walk_vertices = PolygonMap.get_walk_vertices(polygon, holes)
+    walk_graph = PolygonMap.create_walk_graph(polygon, holes, walk_vertices)
 
     Logger.info("walk graphs = #{inspect walk_graph, pretty: true}")
 
@@ -467,7 +468,8 @@ defmodule AstarWx do
     {main, holes} = Scene.classify_polygons(polygons)
     np = Polygon.nearest_point(main, holes, line)
 
-    {graph_usec, {new_graph, new_vertices}} = :timer.tc(fn -> extend_graph(polygons, graph, vertices, [start, np]) end)
+    {polygon, holes} = Scene.classify_polygons(polygons)
+    {graph_usec, {new_graph, new_vertices}} = :timer.tc(fn -> PolygonMap.extend_graph(polygon, holes, graph, vertices, [start, np]) end)
 
     {astar_usec, path} = :timer.tc(fn ->
       astar = Astar.search(new_graph, start, np, fn a, b -> Vector.distance(a, b) end)
@@ -486,109 +488,5 @@ defmodule AstarWx do
     Logger.info("graph extend = #{usec_to_str(graph_usec)} a-star=#{usec_to_str(astar_usec)} distance = #{distance}")
 
     {new_graph, new_vertices, path}
-  end
-
-  @doc """
-  Given a list of polygons (main, & holes), returns a list of vertices.
-
-  The vertices are the main polygon's concave vertices and the convex ones of
-  the holes.
-  """
-  # TODO: move to a polygon_map.ex
-  def get_walk_vertices(polygons) do
-    {main, holes} = Scene.classify_polygons(polygons)
-    {concave, convex} = Polygon.classify_vertices(main)
-    Logger.info("Concave for main = #{inspect main, pretty: true}")
-    Logger.info("Concave for main = #{inspect concave, pretty: true}")
-    Logger.info("Convex for main = #{inspect convex, pretty: true}")
-
-    convex = Enum.reduce(holes, [], fn points, acc ->
-      {_concave, convex} = Polygon.classify_vertices(points)
-      Logger.info("Convex for hole = #{inspect points, pretty: true}")
-      Logger.info("Convex for hole = #{inspect convex, pretty: true}")
-      acc ++ convex
-    end)
-    Logger.info("convex = #{inspect convex, pretty: true}")
-
-    concave ++ convex
-  end
-
-  # TODO: move to a polygon_map.ex
-  def get_edges(polygon, holes, points_a, points_b) do
-    cost_fun = fn a, b -> Vector.distance(a, b) end
-    is_reachable? = fn a, b -> Polygon.is_line_of_sight?(polygon, holes, {a, b}) end
-
-    # O(n^2) check all vertice combos for reachability...
-    {_, all_edges} =
-      Enum.reduce(points_a, {0, %{}}, fn a, {a_idx, acc1} ->
-        {_, inner_edges} =
-          Enum.reduce(points_b, {0, []}, fn b, {b_idx, acc2} ->
-            # NOTE: this is where the edge value is becomes the key in the
-            # graph. This is why a_idx and b_idx are available here, in case we
-            # want to change it up to be the indexes into points. Unless those
-            # two sets are the same, using the indexes makes no sense.
-            if a != b and is_reachable?.(a, b) do
-              {b_idx + 1, acc2 ++ [{b, cost_fun.(a, b)}]}
-            else
-              {b_idx + 1, acc2}
-            end
-          end)
-        {a_idx + 1, Map.put(acc1, a, inner_edges)}
-      end)
-    Map.new(all_edges)
-  end
-
-  @doc """
-  Given a polygon map (main & holes) and list of vertices, makes the graph.
-  """
-  # TODO: move to a polygon_map.ex
-  def create_walk_graph(polygons, vertices) do
-    {main, holes} = Scene.classify_polygons(polygons)
-    get_edges(main, holes, vertices, vertices)
-  end
-
-  @doc """
-  Given a polygon map (main & holes), list of vertices and the initial graph,
-  extend the graph with extra `points`.
-
-  This is used to "temporarily" expand the fixed walk graph with the start and
-  end-point. This is a performance optimisation that saves work by reusing the
-  fixed nodes and extend it with the moveable points.
-
-  ## Params
-  * `polygons`, a `%{main: [...], hole: [...], hole2: [...]}` polygon map.
-  * `graph`, the fixed graph, eg. created via `create_walk_graph/2`.
-  * `vertices` the nodes used to create `graph`.
-  * `points` a list of coordinates, `[{x, y}, {x, y}...]`, to extend
-
-  """
-  # TODO: move to a polygon_map.ex
-  def extend_graph(polygons, graph, vertices, points) do
-    {main, holes} = Scene.classify_polygons(polygons)
-
-    # To extend the graph `graph` made up up `vertices` with new points
-    # `points`, we need to find three sets of edges (sub-graphs). The ones from
-    # the new points to the existing vertices, vice-versa, and between the new
-    # points.
-    set_a = get_edges(main, holes, points, vertices)
-    set_b = get_edges(main, holes, vertices, points)
-    set_c = get_edges(main, holes, points, points)
-    # Logger.info("set_a, points to vertices = #{inspect set_a, pretty: true}")
-    # Logger.info("set_b, points to vertices = #{inspect set_b, pretty: true}")
-    # Logger.info("set_c, points to points = #{inspect set_c, pretty: true}")
-
-    # Merge the three new sub-graphs into graph. This uses Map.merge with a
-    # merge func that combines values for identical keys (basically extend
-    # them) and dedupes.
-    merge_fun = fn _k, v1, v2 ->
-      Enum.dedup(v1 ++ v2)
-    end
-    graph =
-      graph
-      |> Map.merge(set_a, merge_fun)
-      |> Map.merge(set_b, merge_fun)
-      |> Map.merge(set_c, merge_fun)
-
-    {graph, vertices ++ points}
   end
 end
