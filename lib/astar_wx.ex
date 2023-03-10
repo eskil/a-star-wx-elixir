@@ -216,8 +216,7 @@ defmodule AstarWx do
     draw_polygons(dc, state)
 
     if state.cursor do
-      line = {state.start, state.cursor}
-      draw_a_b_line(dc, line, state.polygon, state.holes)
+      draw_a_b_line(dc, state)
       draw_cursors(dc, state)
     end
 
@@ -362,7 +361,7 @@ defmodule AstarWx do
     :wxBrush.destroy(brush)
   end
 
-  def draw_a_b_line(dc, {a, b}=line, polygon, holes) do
+  def draw_a_b_line(dc, state) do
     brush = :wxBrush.new({0, 0, 0}, [{:style, Wx.wxTRANSPARENT}])
     :wxDC.setBrush(dc, brush)
 
@@ -372,21 +371,24 @@ defmodule AstarWx do
     bright_green = {0, 255, 0}
     bright_green_pen = :wxPen.new(bright_green, [{:width,  1}, {:style, Wx.wxSOLID}])
 
-    if Polygon.is_line_of_sight?(polygon, holes, line) do
+    start = state.start
+    stop = state.cursor
+    line = {state.start, state.cursor}
+    if Polygon.is_line_of_sight?(state.polygon, state.holes, line) do
       :wxDC.setPen(dc, bright_green_pen)
     else
       :wxDC.setPen(dc, light_gray_pen)
     end
-    :ok = :wxDC.drawLine(dc, a, b)
+    :ok = :wxDC.drawLine(dc, start, stop)
 
-    intersections = for poly <- [polygon] ++ holes do
+    intersections = for poly <- [state.polygon] ++ state.holes do
       Polygon.intersections(poly, line)
     end
     |> List.flatten
     |> Enum.sort(fn ia, ib ->
-      v1 = Vector.sub(a, ia)
-      v2 = Vector.sub(a, ib)
-      Vector.distance(a, v1) < Vector.distance(a, v2)
+      v1 = Vector.sub(start, ia)
+      v2 = Vector.sub(start, ib)
+      Vector.distance(start, v1) < Vector.distance(start, v2)
     end)
     |> Enum.map(&(Vector.trunc_pos(&1)))
 
