@@ -25,17 +25,21 @@ defmodule AstarWx do
 
     frame_id = System.unique_integer([:positive, :monotonic])
     frame = :wxFrame.new(wx, frame_id, @title, size: @size)
-    :wxFrame.connect(frame, :size)
+    :wxFrame.connect(frame, :size, [:callback])
     :wxFrame.connect(frame, :close_window)
 
-    panel = :wxPanel.new(frame, [])
-    # https://www.erlang.org/doc/man/wxmouseevent#type-wxMouseEventType
+    panel = :wxPanel.new(frame, size: @size)
     :wxPanel.connect(panel, :paint, [:callback])
     :wxPanel.connect(panel, :left_up)
     :wxPanel.connect(panel, :left_down)
-    :wxFrame.connect(panel, :motion)
+    :wxPanel.connect(panel, :motion)
     :wxPanel.connect(panel, :enter_window)
     :wxPanel.connect(panel, :leave_window)
+
+    sizer = :wxBoxSizer.new(Wx.wxVERTICAL)
+    :wxSizer.add(sizer, panel, [proportion: 1, flag: Wx.wxSHAPED])
+    #:wxSizer.setMinSize(sizer, @size)
+    :wxFrame.setSizer(frame, sizer)
 
     :wxFrame.show(frame)
 
@@ -49,7 +53,7 @@ defmodule AstarWx do
     Logger.info("starting timer #{slice}ms")
     timer_ref = Process.send_after(self(), :tick, slice)
 
-    {start, polygons} = Scene.load("quickstart")
+    {start, polygons} = Scene.load("complex")
     {polygon, holes} = Scene.classify_polygons(polygons)
 
     walk_vertices = PolygonMap.get_vertices(polygon, holes)
@@ -61,6 +65,7 @@ defmodule AstarWx do
       wx_frame: frame,
       wx_panel: panel,
       wx_memory_dc: memory_dc,
+      wx_sizer: sizer,
 
       updated_at: nil,
 
@@ -97,9 +102,15 @@ defmodule AstarWx do
   ##
 
   @impl true
-  def handle_event({:wx, _, _, _, {:wxSize, :size, size, _}}=event, state) do
+  def handle_event({:wx, _, _, _, {:wxSize, :size, {w, h}=_size, _}}=event, state) do
     Logger.info("received size event: #{inspect(event)}")
-    :wxPanel.setSize(state.wx_panel, size)
+    # {w, h} = WxUtils.wx_aspect_ratio({w, h}, 640 / 480)
+    # Logger.info("size #{inspect size} = #{w} #{h}")
+    # :wxEvent.skip(event)
+    :wxFrame.layout(state.wx_frame)
+    :wxPanel.setMinSize(state.wx_panel, {w, h})
+    :wxFrame.fit(state.wx_frame)
+
     {:noreply, state}
   end
 
@@ -209,6 +220,17 @@ defmodule AstarWx do
   ##
 
   @impl true
+  def handle_sync_event({:wx, _, _, _, {:wxSize, :size, _, _}}=_xevent, wxo, state) do
+    :wxEvent.skip(wxo)
+    :wxFrame.layout(state.wx_frame)
+    panel_size = :wxPanel.getSize(state.wx_panel)
+    :wxPanel.setMinSize(state.wx_panel, panel_size)
+    :wxFrame.fit(state.wx_frame)
+
+    :ok
+  end
+
+  @impl true
   def handle_sync_event({:wx, _, _, _, {:wxPaint, :paint}}=_event, _, state) do
     dc = state.wx_memory_dc
     WxUtils.wx_cls(dc)
@@ -222,6 +244,7 @@ defmodule AstarWx do
 
     # Draw
     paint_dc = :wxPaintDC.new(state.wx_panel)
+    #:wxDC.setUserScale(paint_dc, 1.2, 1.2)
     :wxDC.blit(paint_dc, {0, 0}, @size, dc, {0, 0})
     :wxPaintDC.destroy(paint_dc)
 

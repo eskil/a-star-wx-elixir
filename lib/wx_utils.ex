@@ -42,4 +42,13 @@ defmodule WxUtils do
   def wx_cls(dc) do
     wx_cls(dc, {0, 0, 0})
   end
+
+  def wx_aspect_ratio({w, h}=_size, ratio) do
+    cond do
+      w/h > ratio ->
+        {w, round(w / ratio)}
+      true ->
+        {round(h * ratio), h}
+    end
+  end
 end
