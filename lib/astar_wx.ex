@@ -303,8 +303,8 @@ defmodule AstarWx do
 
     WxUtils.wx_crosshair(dc, start, bright_green, size: 6)
 
-    if Geo.is_inside?(main, cursor) do
-      if Enum.any?(holes, &(Geo.is_inside?(&1, cursor))) do
+    if Polygon.is_inside?(main, cursor) do
+      if Enum.any?(holes, &(Polygon.is_inside?(&1, cursor))) do
         WxUtils.wx_crosshair(dc, cursor, light_gray, size: 6)
       else
         WxUtils.wx_crosshair(dc, cursor, bright_red, size: 6)
@@ -376,7 +376,7 @@ defmodule AstarWx do
 
     {main, holes} = Scene.classify_polygons(polygons)
 
-    if Geo.is_line_of_sight?(main, holes, line) do
+    if Polygon.is_line_of_sight?(main, holes, line) do
       :wxDC.setPen(dc, bright_green_pen)
     else
       :wxDC.setPen(dc, light_gray_pen)
@@ -384,7 +384,7 @@ defmodule AstarWx do
     :ok = :wxDC.drawLine(dc, a, b)
 
     intersections = for {_name, polygon} <- polygons do
-      Geo.intersections(polygon, line)
+      Polygon.intersections(polygon, line)
     end
     |> List.flatten
     |> Enum.sort(fn ia, ib ->
@@ -465,7 +465,7 @@ defmodule AstarWx do
   def get_updated_graph_vertices_path(polygons, vertices, graph, start, stop) do
     line = {start, stop}
     {main, holes} = Scene.classify_polygons(polygons)
-    np = Geo.nearest_point(main, holes, line)
+    np = Polygon.nearest_point(main, holes, line)
 
     {graph_usec, {new_graph, new_vertices}} = :timer.tc(fn -> extend_graph(polygons, graph, vertices, [start, np]) end)
 
@@ -497,13 +497,13 @@ defmodule AstarWx do
   # TODO: move to a polygon_map.ex
   def get_walk_vertices(polygons) do
     {main, holes} = Scene.classify_polygons(polygons)
-    {concave, convex} = Geo.classify_vertices(main)
+    {concave, convex} = Polygon.classify_vertices(main)
     Logger.info("Concave for main = #{inspect main, pretty: true}")
     Logger.info("Concave for main = #{inspect concave, pretty: true}")
     Logger.info("Convex for main = #{inspect convex, pretty: true}")
 
     convex = Enum.reduce(holes, [], fn points, acc ->
-      {_concave, convex} = Geo.classify_vertices(points)
+      {_concave, convex} = Polygon.classify_vertices(points)
       Logger.info("Convex for hole = #{inspect points, pretty: true}")
       Logger.info("Convex for hole = #{inspect convex, pretty: true}")
       acc ++ convex
@@ -516,7 +516,7 @@ defmodule AstarWx do
   # TODO: move to a polygon_map.ex
   def get_edges(polygon, holes, points_a, points_b) do
     cost_fun = fn a, b -> Vector.distance(a, b) end
-    is_reachable? = fn a, b -> Geo.is_line_of_sight?(polygon, holes, {a, b}) end
+    is_reachable? = fn a, b -> Polygon.is_line_of_sight?(polygon, holes, {a, b}) end
 
     # O(n^2) check all vertice combos for reachability...
     {_, all_edges} =

@@ -45,7 +45,7 @@ defmodule Scene do
 
   # Quick and dirty tap function that'll crash if any polygon isn't clockwise.
   defp check_clockwise(polygons) do
-    true = Enum.all?(polygons, fn {_name, polygon} -> Geo.is_clockwise?(polygon) end)
+    true = Enum.all?(polygons, fn {_name, polygon} -> Polygon.is_clockwise?(polygon) end)
   end
 
   def load(scene) do
