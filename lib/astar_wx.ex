@@ -512,7 +512,7 @@ defmodule AstarWx do
         _, acc -> acc
       end)
 
-    Logger.info("graph extend = #{usec_to_str(graph_usec)} a-star=#{usec_to_str(astar_usec)} distance = #{distance}")
+    Logger.info("graph extend = #{usec_to_str(graph_usec)} a-star = #{usec_to_str(astar_usec)} distance = #{distance}")
 
     {new_graph, new_vertices, path}
   end
