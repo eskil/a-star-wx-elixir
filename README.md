@@ -48,6 +48,8 @@ mix docs
 open doc/index.html
 ```
 
+See the [quickstart](doc/Quickstart.md).
+
 ### Vectors
 
 In `lib/vector.ex` you'll find the basic vector operations (dot,
@@ -125,7 +127,7 @@ vertices = [{x1, y1}=vertice1, {x2, y2}=vertice2, {x3, y3}=vertice3...]
 
 This is transformed to a graph, where each entry is used as a key to a
 list of keys to other vertices and their cost. This transformation is
-not strictly relevant to the A* algorithm, but the result is the
+not strictly relevant to the A-star algorithm, but the result is the
 input.
 
 Assuming a `cost_fun` that has type `vertice, vertice :: cost`, the graph looks like;
@@ -147,7 +149,8 @@ graph = %{
 }
 ```
 
-The `cost_fun` in this is the euclidean distance been the two points.
+The default `cost_fun` and `heur_fun` is the euclidean distance been
+the two points.
 
 ```elixir
 cost_fun = fn a, b -> Vector.distance(a, b) end
@@ -171,7 +174,7 @@ By using whatever key the vetices list uses, we keep it simple, and
 whatever manages the nodes can keep the initial list short, yet
 also uses the keys to manage its own affairs.
 
-The A* algorithm thus receives;
+The A-star algorithm thus receives;
 
 * `graph` to search. The graph should be constructed as
 
@@ -194,9 +197,8 @@ graph = %{
 
 * `start` and `stop`, the nodes to find a path between.
 
-* `heur_fun` function `node, node :: cost` computes heuristic
-  cost. The common case in a 2D polygon map is the straight-line
-  distance.
+* `heur_fun` function `node, node :: cost` computes the heuristic
+  cost. The default is the euclidian distance.
 
 ```elixir
 fn a, b -> Vector.distance(a, b) end
@@ -228,7 +230,7 @@ The state it maintains
   `heur_fun`. This is used to reorder `queue`.
 
 Within `astar.ex`, there's two steps; search & getting the
-path. `search` returns the full state, and `get_path` could be
+path. `search` returns the full state, and `path` could be
 extended to return the cost along the path if needed. It can fetch
 this from `g_cost.`
 
