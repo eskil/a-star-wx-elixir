@@ -11,8 +11,6 @@ defmodule PolygonMap do
   to find the shortest path between points in the map.
   """
 
-  require Logger
-
   @doc """
   Given a polygon map (main, & holes), returns a list of vertices.
 

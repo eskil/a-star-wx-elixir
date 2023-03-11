@@ -203,4 +203,99 @@ defmodule PolygonMapTest do
     ]
     assert PolygonMap.is_line_of_sight?(polygon, holes, line) == false
   end
+
+  ###
+  ### get_vertices
+  ###
+
+  test "get_vertices" do
+    # M shape
+    polygon = [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]
+    # Two holes with concave point each
+    holes = [
+      [{5, 5}, {5.1, 6.9}, {7, 7}, {5, 7}],
+      [{15, 5}, {15.1, 6.9}, {17, 7}, {15, 7}],
+    ]
+    assert PolygonMap.get_vertices(polygon, holes) == [{10, 10}, {5, 5}, {7, 7}, {5, 7}, {15, 5}, {17, 7}, {15, 7}]
+  end
+
+  ###
+  ### create_graph
+  ###
+
+  test "create_graph default cost" do
+    # M shape
+    polygon = [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]
+    # Two holes with concave point each
+    holes = [
+      [{5, 5}, {7, 5}, {7, 7}, {5, 7}],
+    ]
+    vertices = PolygonMap.get_vertices(polygon, holes)
+    graph = PolygonMap.create_graph(polygon, holes, vertices)
+
+    assert Enum.sort(Map.keys(graph)) == [{5, 5}, {5, 7}, {7, 5}, {7, 7}, {10, 10}]
+
+    edges_10_10 = graph[{10, 10}]
+    assert [{{5, 7}, _}, {{7, 5}, _}, {{7, 7}, _}] = Enum.sort(edges_10_10)
+  end
+
+  test "create_graph custom cost" do
+    # M shape
+    polygon = [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]
+    # Two holes with concave point each
+    holes = [
+      [{5, 5}, {7, 5}, {7, 7}, {5, 7}],
+    ]
+    # Eg. edge {1,2} -> {3, 4} = 1+2+3+4 = 10
+    cost_fun = fn {x1, y1}, {x2, y2} -> x1 + y1 + x2 + y2 end
+    vertices = PolygonMap.get_vertices(polygon, holes)
+    graph = PolygonMap.create_graph(polygon, holes, vertices, cost_fun)
+
+    assert Enum.sort(Map.keys(graph)) == Enum.sort(vertices)
+
+    edges_10_10 = graph[{10, 10}]
+    assert [{{5, 7}, 32}, {{7, 5}, 32}, {{7, 7}, 34}] = Enum.sort(edges_10_10)
+  end
+
+  ###
+  ### extend_graph
+  ###
+
+  test "extend_graph default cost" do
+    # M shape
+    polygon = [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]
+    # Two holes with concave point each
+    holes = [
+      [{5, 5}, {7, 5}, {7, 7}, {5, 7}],
+    ]
+    vertices = PolygonMap.get_vertices(polygon, holes)
+    graph = PolygonMap.create_graph(polygon, holes, vertices)
+    points = [{0, 0}, {20, 20}]
+    {graph, vertices} = PolygonMap.extend_graph(graph, polygon, holes, vertices, points)
+    assert Enum.sort(vertices) == [{0, 0}, {5, 5}, {5, 7}, {7, 5}, {7, 7}, {10, 10}, {20, 20}]
+
+    assert Enum.sort(Map.keys(graph)) == Enum.sort(vertices)
+    edges_10_10 = graph[{10, 10}]
+    assert [{{5, 7}, _}, {{7, 5}, _}, {{7, 7}, _}, {{20, 20}, _}] = Enum.sort(edges_10_10)
+  end
+
+  test "extend_graph custom cost" do
+    # M shape
+    polygon = [{0, 0}, {10, 0}, {20, 0}, {20, 20}, {10, 10}, {0, 20}]
+    # Two holes with concave point each
+    holes = [
+      [{5, 5}, {7, 5}, {7, 7}, {5, 7}],
+    ]
+    # Eg. edge {1,2} -> {3, 4} = 1+2+3+4 = 10
+    cost_fun = fn {x1, y1}, {x2, y2} -> x1 + y1 + x2 + y2 end
+    vertices = PolygonMap.get_vertices(polygon, holes)
+    graph = PolygonMap.create_graph(polygon, holes, vertices, cost_fun)
+    points = [{0, 0}, {20, 20}]
+    {graph, vertices} = PolygonMap.extend_graph(graph, polygon, holes, vertices, points, cost_fun)
+    assert Enum.sort(vertices) == [{0, 0}, {5, 5}, {5, 7}, {7, 5}, {7, 7}, {10, 10}, {20, 20}]
+
+    assert Enum.sort(Map.keys(graph)) == Enum.sort(vertices)
+    edges_10_10 = graph[{10, 10}]
+    assert [{{5, 7}, 32}, {{7, 5}, 32}, {{7, 7}, 34}, {{20, 20}, 60}] = Enum.sort(edges_10_10)
+  end
 end
