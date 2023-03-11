@@ -27,7 +27,6 @@ mix run --no-halt
 
 ## How to use
 
-
 * The start point is a *green crosshair*.
 * The cursor position is a *red crosshair* if inside the main polution, *gray* if outside.
 * Moving the mouse will show a line from start to the cursor.
@@ -41,6 +40,13 @@ mix run --no-halt
   * You can place the start outside the main polygon.
 
 ## Internals
+
+There's better API documentation availabe by checking out the repo, making the docs and reading those.
+
+```
+mix docs
+open doc/index.html
+```
 
 ### Vectors
 
@@ -228,8 +234,6 @@ this from `g_cost.`
 
 ## Todo
 
-- [ ] Move a lot of the "hackityhacks" from `astar_wx.ex` to geo.ex.
-- [ ] Align on a single `polygon, point` argument order
 - [ ] vector naming, `start, stop`, `src, dst`
 - [ ] Little to no error check of polygon overlap, self-intersection, holes cutting the primary etc.
 
