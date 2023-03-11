@@ -11,6 +11,8 @@ smaller polygons inside it. These are impassable. A-star finds the shortest path
 
 A common use case for this is in games where actors have to move around a screen/map.
 
+This is a standalone example with all the relevant code in `lib/`.
+
 ## How to run
 
 Assuming you have
@@ -22,14 +24,15 @@ mix deps.get
 mix compile
 mix run --no-halt
 ```
-## How to run
+
+## How to use
 
 
 * The start point is a *green crosshair*.
 * The cursor position is a *red crosshair* if inside the main polution, *gray* if outside.
 * Moving the mouse will show a line from start to the cursor.
   * It'll be *green* if the there's a line of sight.
-  * It'll be *gray* if no, and there'll be a *small red crosshair* at
+  * It'll be *gray* if not, and there'll be a *small red crosshair* at
     the first blockage, and *small gray crosshair* all subsequent
     blocks.
 * Holding down left mouse button will show full search graph in
@@ -41,16 +44,19 @@ mix run --no-halt
 
 ### Vectors
 
-A vector is a tuple of positions, `{x, y}`.
-
 In `lib/vector.ex` you'll find the basic vector operations (dot,
 cross, length, add/sub) needed.
+
+A vector is a tuple of positions, `{x, y}`.
 
 ### Lines
 
 A line is a tuple of vectors, `{{x1, y1}, {x2, y2}}`.
 
 ### Polygon
+
+In `lib/plygon.ex` you'll find the various polygon related functions,
+such as line of sight, nearest point, convex etc.
 
 A polygon is a list of vertices (nodes) that are `{x, y}` tuples that
 represent screen coordinates.
